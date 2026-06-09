@@ -1,4 +1,4 @@
-import { api } from "./api.js";
+import { api, usingCache } from "./api.js";
 
 // ── State ──────────────────────────────────────────────────────────────────
 let activeFuel = "E10";
@@ -8,22 +8,18 @@ const FUEL_COLORS = { E5: "#3b82f6", E10: "#22c55e", B7: "#f97316", SDV: "#a855f
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-// ── Chart registry (destroy before redraw) ─────────────────────────────────
 const charts = {};
 function mkChart(id, config) {
   if (charts[id]) charts[id].destroy();
   const ctx = document.getElementById(id);
   if (!ctx) return;
   charts[id] = new Chart(ctx, config);
-  return charts[id];
 }
 
-const defaultFont = { family: "Inter, system-ui, sans-serif", size: 11 };
-Chart.defaults.font = defaultFont;
+Chart.defaults.font = { family: "Inter, system-ui, sans-serif", size: 11 };
 Chart.defaults.color = "#94a3b8";
 const gridColor = "rgba(51,65,85,0.6)";
 
-// ── Helpers ────────────────────────────────────────────────────────────────
 function pct(a, b) {
   if (!a || !b) return null;
   return (((a - b) / b) * 100).toFixed(1);
@@ -37,21 +33,37 @@ function badgeHtml(val) {
   return `<span class="badge ${cls}">${arrow} ${Math.abs(n)}%</span>`;
 }
 
-function formatTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+function fmtDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" });
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-GB", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
 }
 
 function el(id) { return document.getElementById(id); }
 
-// ── 1. National Average Cards ──────────────────────────────────────────────
+// ── Cache banner ────────────────────────────────────────────────────────────
+function showCacheBanner() {
+  if (!usingCache) return;
+  const banner = document.createElement("div");
+  banner.id = "cache-banner";
+  banner.innerHTML = "⚠️ API unavailable — showing cached data. Dashboard may not reflect latest prices.";
+  Object.assign(banner.style, {
+    background: "#92400e", color: "#fef3c7", padding: "0.5rem 2rem",
+    fontSize: "0.8rem", textAlign: "center",
+  });
+  document.body.insertBefore(banner, document.querySelector("main"));
+}
+
+// ── 1 + 2. National Avg Cards + Summary Stats ───────────────────────────────
 async function renderSummaryCards() {
   try {
     const [summary, changes] = await Promise.all([api.summary(), api.priceChange()]);
     const changeMap = Object.fromEntries(changes.map(r => [r.fuel_type, r]));
-    const cont = el("summary-cards");
-    cont.innerHTML = summary.map(r => {
+    el("summary-cards").innerHTML = summary.map(r => {
       const ch = changeMap[r.fuel_type] || {};
       const d7 = pct(ch.current_avg, ch.week_ago_avg);
       const color = FUEL_COLORS[r.fuel_type] || "#3b82f6";
@@ -59,35 +71,61 @@ async function renderSummaryCards() {
         <div class="card stat-card">
           <div class="fuel-label" style="color:${color}">${r.fuel_type}</div>
           <div class="price-big" style="color:${color}">${r.avg_price}p</div>
-          <div class="price-sub">avg today</div>
+          <div class="price-sub">avg today · ${parseInt(r.station_count).toLocaleString()} stations</div>
           <div style="margin-top:0.5rem">${badgeHtml(d7)} <span style="font-size:0.7rem;color:var(--muted)">vs 7d ago</span></div>
-          <div style="margin-top:0.4rem;font-size:0.72rem;color:var(--muted)">
-            ${r.station_count.toLocaleString()} stations
-          </div>
         </div>`;
     }).join("");
-
-    // last updated
     const latest = summary.reduce((a, b) => a.last_updated > b.last_updated ? a : b, summary[0]);
-    el("last-updated").textContent = "Data: " + formatTime(latest.last_updated);
+    el("last-updated").textContent = "Data: " + fmtDate(latest.last_updated);
   } catch (e) { el("summary-cards").innerHTML = `<div class="error-msg">${e.message}</div>`; }
 }
 
-// ── 2. Summary Stats bar ───────────────────────────────────────────────────
-async function renderSummaryStats() {
+// ── 3. System Status Card ───────────────────────────────────────────────────
+async function renderStatusCard() {
   try {
-    const data = await api.summary();
-    const totalStations = data.reduce((s, r) => s + parseInt(r.station_count), 0);
-    const totalReadings = data.reduce((s, r) => s + parseInt(r.reading_count), 0);
-    el("stats-bar").innerHTML = `
-      <div class="stat-item"><div class="label">Fuel types</div><div class="value">${data.length}</div></div>
-      <div class="stat-item"><div class="label">Stations today</div><div class="value">${totalStations.toLocaleString()}</div></div>
-      <div class="stat-item"><div class="label">Readings today</div><div class="value">${totalReadings.toLocaleString()}</div></div>
-    `;
-  } catch {}
+    const s = await api.status();
+    const dot = (val) => val
+      ? `<span style="color:var(--green)">●</span>`
+      : `<span style="color:var(--muted)">○</span>`;
+    el("status-card").innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.2rem">${dot(s.last_data)} Price Data</div>
+          <div style="font-size:0.82rem;font-weight:600">${fmtDate(s.last_data)}</div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-top:0.1rem">${parseInt(s.total_readings||0).toLocaleString()} readings · ${parseInt(s.total_stations||0).toLocaleString()} stations</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.2rem">${dot(s.last_ingest)} Last Ingest</div>
+          <div style="font-size:0.82rem;font-weight:600">${fmtDateTime(s.last_ingest)}</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.2rem">${dot(s.last_forecast)} Forecasts</div>
+          <div style="font-size:0.82rem;font-weight:600">${s.last_forecast ? fmtDate(s.last_forecast) : "Not yet trained"}</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.2rem">${dot(s.last_anomaly_check)} Anomaly Check</div>
+          <div style="font-size:0.82rem;font-weight:600">${s.last_anomaly_check ? fmtDate(s.last_anomaly_check) : "Not yet trained"}</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.2rem">${dot(s.last_predictions)} Predictions</div>
+          <div style="font-size:0.82rem;font-weight:600">${s.last_predictions ? fmtDate(s.last_predictions) : "Not yet trained"}</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.2rem">Data Source</div>
+          <div style="font-size:0.82rem;font-weight:600" id="source-indicator">Live ✓</div>
+        </div>
+      </div>`;
+    setTimeout(() => {
+      const src = el("source-indicator");
+      if (src) {
+        if (usingCache) { src.textContent = "Cached ⚠️"; src.style.color = "var(--yellow)"; }
+        else { src.style.color = "var(--green)"; }
+      }
+    }, 1000);
+  } catch { el("status-card").innerHTML = '<div class="error-msg">Status unavailable</div>'; }
 }
 
-// ── 3. Fuel Type Price Comparison bar ─────────────────────────────────────
+// ── 4. Fuel Type Comparison ─────────────────────────────────────────────────
 async function renderFuelComparison() {
   try {
     const data = await api.summary();
@@ -95,29 +133,19 @@ async function renderFuelComparison() {
       type: "bar",
       data: {
         labels: data.map(r => r.fuel_type),
-        datasets: [{
-          data: data.map(r => r.avg_price),
-          backgroundColor: data.map(r => FUEL_COLORS[r.fuel_type] || "#3b82f6"),
-          borderRadius: 6,
-        }]
+        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map(r => FUEL_COLORS[r.fuel_type] || "#3b82f6"), borderRadius: 6 }]
       },
-      options: {
-        indexAxis: "y", plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } },
-          y: { grid: { display: false } }
-        }
-      }
+      options: { indexAxis: "y", plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }, y: { grid: { display: false } } } }
     });
   } catch {}
 }
 
-// ── 4. Price Change Cards (7d / 30d) ──────────────────────────────────────
+// ── 5. Price Change Cards ───────────────────────────────────────────────────
 async function renderPriceChangeCards() {
   try {
     const data = await api.priceChange();
-    const cont = el("change-cards");
-    cont.innerHTML = data.map(r => {
+    el("change-cards").innerHTML = data.map(r => {
       const d7 = pct(r.current_avg, r.week_ago_avg);
       const d30 = pct(r.current_avg, r.month_ago_avg);
       const color = FUEL_COLORS[r.fuel_type] || "#3b82f6";
@@ -125,14 +153,8 @@ async function renderPriceChangeCards() {
         <div class="card">
           <div class="card-title" style="color:${color}">${r.fuel_type} Price Change</div>
           <div style="display:flex;gap:1.5rem;align-items:center">
-            <div>
-              <div style="font-size:0.7rem;color:var(--muted)">vs 7 days</div>
-              <div style="margin-top:0.2rem">${badgeHtml(d7)}</div>
-            </div>
-            <div>
-              <div style="font-size:0.7rem;color:var(--muted)">vs 30 days</div>
-              <div style="margin-top:0.2rem">${badgeHtml(d30)}</div>
-            </div>
+            <div><div style="font-size:0.7rem;color:var(--muted)">vs 7 days</div><div style="margin-top:0.2rem">${badgeHtml(d7)}</div></div>
+            <div><div style="font-size:0.7rem;color:var(--muted)">vs 30 days</div><div style="margin-top:0.2rem">${badgeHtml(d30)}</div></div>
             <div style="margin-left:auto;text-align:right">
               <div style="font-size:0.7rem;color:var(--muted)">Now</div>
               <div style="font-size:1.3rem;font-weight:700;color:${color}">${r.current_avg}p</div>
@@ -143,7 +165,7 @@ async function renderPriceChangeCards() {
   } catch (e) { el("change-cards").innerHTML = `<div class="error-msg">${e.message}</div>`; }
 }
 
-// ── 5. 30-Day Price Trend ──────────────────────────────────────────────────
+// ── 6. 30-Day Trend ─────────────────────────────────────────────────────────
 async function renderPriceTrend() {
   try {
     const data = await api.priceTrend(30);
@@ -156,115 +178,73 @@ async function renderPriceTrend() {
     });
     mkChart("chart-trend", {
       type: "line",
-      data: {
-        labels: dates.map(d => new Date(d).toLocaleDateString("en-GB", { day:"numeric", month:"short" })),
-        datasets: fuels.map(f => ({
-          label: f, data: byFuel[f],
-          borderColor: FUEL_COLORS[f] || "#3b82f6",
-          backgroundColor: "transparent",
-          borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true,
-        }))
-      },
-      options: {
-        plugins: { legend: { position: "top" } },
-        scales: {
-          x: { grid: { color: gridColor }, ticks: { maxTicksLimit: 8 } },
-          y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }
-        }
-      }
+      data: { labels: dates.map(d => new Date(d).toLocaleDateString("en-GB", { day:"numeric", month:"short" })),
+        datasets: fuels.map(f => ({ label: f, data: byFuel[f], borderColor: FUEL_COLORS[f] || "#3b82f6",
+          backgroundColor: "transparent", borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true })) },
+      options: { plugins: { legend: { position: "top" } },
+        scales: { x: { grid: { color: gridColor }, ticks: { maxTicksLimit: 8 } },
+                  y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } } } }
     });
   } catch {}
 }
 
-// ── 6. Day of Week Patterns ────────────────────────────────────────────────
+// ── 7. Day of Week ──────────────────────────────────────────────────────────
 async function renderDayOfWeek() {
   try {
     const data = await api.byDow(activeFuel);
+    const min = Math.min(...data.map(x => x.avg_price));
     mkChart("chart-dow", {
       type: "bar",
-      data: {
-        labels: data.map(r => DOW[r.day_of_week]),
-        datasets: [{
-          label: activeFuel,
-          data: data.map(r => r.avg_price),
-          backgroundColor: data.map((r, i) => {
-            const min = Math.min(...data.map(x => x.avg_price));
-            return r.avg_price === min ? FUEL_COLORS[activeFuel] || "#3b82f6" : "rgba(148,163,184,0.25)";
-          }),
-          borderRadius: 5,
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" }, suggestedMin: (d => Math.min(...d.map(r=>r.avg_price)) - 2)(data) }
-        }
-      }
+      data: { labels: data.map(r => DOW[r.day_of_week]),
+        datasets: [{ data: data.map(r => r.avg_price),
+          backgroundColor: data.map(r => r.avg_price === min ? FUEL_COLORS[activeFuel] : "rgba(148,163,184,0.25)"),
+          borderRadius: 5 }] },
+      options: { plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } },
+                  y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" }, suggestedMin: min - 2 } } }
     });
   } catch {}
 }
 
-// ── 7. Monthly Seasonality ─────────────────────────────────────────────────
+// ── 8. Monthly Seasonality ──────────────────────────────────────────────────
 async function renderMonthly() {
   try {
     const data = await api.byMonth(activeFuel);
+    const color = FUEL_COLORS[activeFuel] || "#3b82f6";
     mkChart("chart-monthly", {
       type: "line",
-      data: {
-        labels: data.map(r => MONTHS[r.month - 1]),
-        datasets: [{
-          label: activeFuel,
-          data: data.map(r => r.avg_price),
-          borderColor: FUEL_COLORS[activeFuel] || "#3b82f6",
-          backgroundColor: (FUEL_COLORS[activeFuel] || "#3b82f6") + "22",
-          fill: true, borderWidth: 2, pointRadius: 4, tension: 0.3,
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }
-        }
-      }
+      data: { labels: data.map(r => MONTHS[r.month - 1]),
+        datasets: [{ label: activeFuel, data: data.map(r => r.avg_price),
+          borderColor: color, backgroundColor: color + "22", fill: true, borderWidth: 2, pointRadius: 4, tension: 0.3 }] },
+      options: { plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } } } }
     });
   } catch {}
 }
 
-// ── 8. Price Distribution Histogram ───────────────────────────────────────
+// ── 9. Price Distribution ───────────────────────────────────────────────────
 async function renderDistribution() {
   try {
     const data = await api.distribution(activeFuel);
+    const color = FUEL_COLORS[activeFuel] || "#3b82f6";
     mkChart("chart-dist", {
       type: "bar",
-      data: {
-        labels: data.map(r => r.bucket + "p"),
-        datasets: [{
-          data: data.map(r => r.count),
-          backgroundColor: FUEL_COLORS[activeFuel] + "99" || "#3b82f699",
-          borderColor: FUEL_COLORS[activeFuel] || "#3b82f6",
-          borderWidth: 1, borderRadius: 2,
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
-          y: { grid: { color: gridColor }, title: { display: true, text: "Stations" } }
-        }
-      }
+      data: { labels: data.map(r => r.bucket + "p"),
+        datasets: [{ data: data.map(r => r.count), backgroundColor: color + "99",
+          borderColor: color, borderWidth: 1, borderRadius: 2 }] },
+      options: { plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
+                  y: { grid: { color: gridColor }, title: { display: true, text: "Stations" } } } }
     });
   } catch {}
 }
 
-// ── 9. Interactive Station Map ─────────────────────────────────────────────
+// ── 10. Map ─────────────────────────────────────────────────────────────────
 async function renderMap() {
   if (!map) {
     map = L.map("map").setView([54.5, -2.5], 6);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: "© OpenStreetMap © CARTO", maxZoom: 18
-    }).addTo(map);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      { attribution: "© OpenStreetMap © CARTO", maxZoom: 18 }).addTo(map);
     markersLayer = L.layerGroup().addTo(map);
   }
   try {
@@ -278,311 +258,205 @@ async function renderMap() {
       const t = (parseFloat(p.price_pence) - min) / (max - min || 1);
       const r = Math.round(t * 255), g = Math.round((1 - t) * 200);
       const color = `rgb(${r},${g},40)`;
-      L.circleMarker([p.latitude, p.longitude], {
-        radius: 5, fillColor: color, color: "#0f172a",
-        weight: 1, fillOpacity: 0.85,
-      }).bindPopup(`<b>${p.brand_name}</b><br>${p.city}, ${p.county}<br>
-        <b style="color:${color}">${p.price_pence}p</b> ${p.fuel_type}<br>
-        <small>${formatTime(p.recorded_at)}</small>`)
+      L.circleMarker([p.latitude, p.longitude], { radius: 5, fillColor: color, color: "#0f172a", weight: 1, fillOpacity: 0.85 })
+        .bindPopup(`<b>${p.brand_name}</b><br>${p.city}, ${p.county}<br><b style="color:${color}">${p.price_pence}p</b> ${p.fuel_type}<br><small>${fmtDate(p.recorded_at)}</small>`)
         .addTo(markersLayer);
     });
   } catch {}
 }
 
-// ── 10. Cheapest Counties Table ────────────────────────────────────────────
+// ── 11. Cheapest Counties ───────────────────────────────────────────────────
 async function renderCheapestCounties() {
   try {
     const data = await api.byCounty(activeFuel);
     const top = data.slice(0, 10);
     const maxP = Math.max(...top.map(r => r.avg_price));
-    el("table-cheapest-counties").innerHTML = `
-      <table>
-        <thead><tr><th class="rank">#</th><th>County</th><th>Avg Price</th><th>Stations</th></tr></thead>
-        <tbody>${top.map((r, i) => `
-          <tr>
-            <td class="rank">${i + 1}</td>
-            <td>${r.county}</td>
-            <td>
-              <div class="price-bar-wrap">
-                <span>${r.avg_price}p</span>
-                <div class="price-bar" style="width:${(r.avg_price/maxP*80).toFixed(0)}px"></div>
-              </div>
-            </td>
-            <td style="color:var(--muted)">${r.station_count}</td>
-          </tr>`).join("")}
-        </tbody>
-      </table>`;
+    el("table-cheapest-counties").innerHTML = `<table>
+      <thead><tr><th class="rank">#</th><th>County</th><th>Avg</th><th>Stations</th></tr></thead>
+      <tbody>${top.map((r, i) => `<tr>
+        <td class="rank">${i+1}</td><td>${r.county}</td>
+        <td><div class="price-bar-wrap"><span>${r.avg_price}p</span><div class="price-bar" style="width:${(r.avg_price/maxP*70).toFixed(0)}px"></div></div></td>
+        <td style="color:var(--muted)">${r.station_count}</td>
+      </tr>`).join("")}</tbody></table>`;
   } catch {}
 }
 
-// ── 11. Station Count by County ────────────────────────────────────────────
+// ── 12. Station Count by County ─────────────────────────────────────────────
 async function renderStationByCounty() {
   try {
-    const data = await api.stationByCounty();
-    const top = data.slice(0, 15);
+    const data = (await api.stationByCounty()).slice(0, 15);
     mkChart("chart-station-county", {
       type: "bar",
-      data: {
-        labels: top.map(r => r.county),
-        datasets: [{ data: top.map(r => r.station_count), backgroundColor: "#3b82f666", borderColor: "#3b82f6", borderWidth: 1, borderRadius: 4 }]
-      },
-      options: {
-        indexAxis: "y", plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: gridColor } },
-          y: { grid: { display: false }, ticks: { font: { size: 10 } } }
-        }
-      }
+      data: { labels: data.map(r => r.county),
+        datasets: [{ data: data.map(r => r.station_count), backgroundColor: "#3b82f666", borderColor: "#3b82f6", borderWidth: 1, borderRadius: 4 }] },
+      options: { indexAxis: "y", plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: gridColor } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
     });
   } catch {}
 }
 
-// ── 12. County Price Ranking ───────────────────────────────────────────────
+// ── 13. Most Expensive Counties ─────────────────────────────────────────────
 async function renderCountyPriceRanking() {
   try {
-    const data = await api.byCounty(activeFuel);
-    const expensive = [...data].sort((a, b) => b.avg_price - a.avg_price).slice(0, 10);
-    el("table-expensive-counties").innerHTML = `
-      <table>
-        <thead><tr><th class="rank">#</th><th>County</th><th>Avg Price</th></tr></thead>
-        <tbody>${expensive.map((r, i) => `
-          <tr>
-            <td class="rank">${i + 1}</td>
-            <td>${r.county}</td>
-            <td style="color:var(--red);font-weight:600">${r.avg_price}p</td>
-          </tr>`).join("")}
-        </tbody>
-      </table>`;
+    const data = [...await api.byCounty(activeFuel)].sort((a,b) => b.avg_price - a.avg_price).slice(0,10);
+    el("table-expensive-counties").innerHTML = `<table>
+      <thead><tr><th class="rank">#</th><th>County</th><th>Avg</th></tr></thead>
+      <tbody>${data.map((r,i) => `<tr><td class="rank">${i+1}</td><td>${r.county}</td>
+        <td style="color:var(--red);font-weight:600">${r.avg_price}p</td></tr>`).join("")}
+      </tbody></table>`;
   } catch {}
 }
 
-// ── 13. Brand Average Price ────────────────────────────────────────────────
+// ── 14. Brand Price ─────────────────────────────────────────────────────────
 async function renderBrandPrice() {
   try {
-    const data = await api.byBrand(activeFuel);
-    const top = data.slice(0, 15);
+    const data = (await api.byBrand(activeFuel)).slice(0, 15);
     mkChart("chart-brand-price", {
       type: "bar",
-      data: {
-        labels: top.map(r => r.brand_name),
-        datasets: [{
-          label: "Avg price (p)",
-          data: top.map(r => r.avg_price),
-          backgroundColor: top.map((_, i) => `hsl(${210 + i * 8},70%,55%)`),
-          borderRadius: 5,
-        }]
-      },
-      options: {
-        indexAxis: "y", plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } },
-          y: { grid: { display: false }, ticks: { font: { size: 10 } } }
-        }
-      }
+      data: { labels: data.map(r => r.brand_name),
+        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map((_,i) => `hsl(${210+i*8},70%,55%)`), borderRadius: 5 }] },
+      options: { indexAxis: "y", plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
     });
   } catch {}
 }
 
-// ── 14. Brand Market Share Donut ───────────────────────────────────────────
+// ── 15. Brand Market Share ──────────────────────────────────────────────────
 async function renderBrandShare() {
   try {
-    const data = await api.byBrand(activeFuel);
-    const top = data.sort((a, b) => b.station_count - a.station_count).slice(0, 10);
-    const others = data.slice(10).reduce((s, r) => s + r.station_count, 0);
+    const all = (await api.byBrand(activeFuel)).sort((a,b) => b.station_count - a.station_count);
+    const top = all.slice(0, 10);
+    const others = all.slice(10).reduce((s,r) => s + r.station_count, 0);
     const labels = top.map(r => r.brand_name);
     const vals = top.map(r => r.station_count);
     if (others > 0) { labels.push("Others"); vals.push(others); }
     mkChart("chart-brand-share", {
       type: "doughnut",
-      data: {
-        labels,
-        datasets: [{ data: vals, backgroundColor: labels.map((_, i) => `hsl(${i * 36},65%,55%)`), borderColor: "#1e293b", borderWidth: 2 }]
-      },
+      data: { labels, datasets: [{ data: vals, backgroundColor: labels.map((_,i) => `hsl(${i*36},65%,55%)`), borderColor: "#1e293b", borderWidth: 2 }] },
       options: { plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 10 } } } }, cutout: "65%" }
     });
   } catch {}
 }
 
-// ── 15. Motorway vs Regular ────────────────────────────────────────────────
+// ── 16. Motorway vs Regular ─────────────────────────────────────────────────
 async function renderMotorwayCompare() {
   try {
     const data = await api.motorwayCompare();
     const fuels = [...new Set(data.map(r => r.fuel_type))];
-    const motorway = fuels.map(f => data.find(r => r.fuel_type === f && r.is_motorway === 1)?.avg_price ?? 0);
-    const regular = fuels.map(f => data.find(r => r.fuel_type === f && r.is_motorway === 0)?.avg_price ?? 0);
     mkChart("chart-motorway", {
       type: "bar",
-      data: {
-        labels: fuels,
-        datasets: [
-          { label: "Motorway", data: motorway, backgroundColor: "#ef444466", borderColor: "#ef4444", borderWidth: 1, borderRadius: 4 },
-          { label: "Regular",  data: regular,  backgroundColor: "#22c55e66", borderColor: "#22c55e", borderWidth: 1, borderRadius: 4 }
-        ]
-      },
-      options: {
-        plugins: { legend: { position: "top" } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }
-        }
-      }
+      data: { labels: fuels, datasets: [
+        { label: "Motorway", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===1)?.avg_price??0), backgroundColor: "#ef444466", borderColor: "#ef4444", borderWidth: 1, borderRadius: 4 },
+        { label: "Regular",  data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===0)?.avg_price??0), backgroundColor: "#22c55e66", borderColor: "#22c55e", borderWidth: 1, borderRadius: 4 }
+      ]},
+      options: { plugins: { legend: { position: "top" } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
     });
   } catch {}
 }
 
-// ── 16. Supermarket vs Regular ─────────────────────────────────────────────
+// ── 17. Supermarket vs Regular ──────────────────────────────────────────────
 async function renderSupermarketCompare() {
   try {
     const data = await api.supermarketCompare();
     const fuels = [...new Set(data.map(r => r.fuel_type))];
-    const supermarket = fuels.map(f => data.find(r => r.fuel_type === f && r.is_supermarket === 1)?.avg_price ?? 0);
-    const regular = fuels.map(f => data.find(r => r.fuel_type === f && r.is_supermarket === 0)?.avg_price ?? 0);
     mkChart("chart-supermarket", {
       type: "bar",
-      data: {
-        labels: fuels,
-        datasets: [
-          { label: "Supermarket", data: supermarket, backgroundColor: "#3b82f666", borderColor: "#3b82f6", borderWidth: 1, borderRadius: 4 },
-          { label: "Regular",     data: regular,     backgroundColor: "#a855f766", borderColor: "#a855f7", borderWidth: 1, borderRadius: 4 }
-        ]
-      },
-      options: {
-        plugins: { legend: { position: "top" } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }
-        }
-      }
+      data: { labels: fuels, datasets: [
+        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#3b82f666", borderColor: "#3b82f6", borderWidth: 1, borderRadius: 4 },
+        { label: "Regular",    data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===0)?.avg_price??0), backgroundColor: "#a855f766", borderColor: "#a855f7", borderWidth: 1, borderRadius: 4 }
+      ]},
+      options: { plugins: { legend: { position: "top" } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
     });
   } catch {}
 }
 
-// ── 17. SNARIMAX Forecast ──────────────────────────────────────────────────
+// ── 18. SNARIMAX Forecast ───────────────────────────────────────────────────
 async function renderForecast() {
-  const cont = el("forecast-content");
   try {
     const data = await api.forecast(activeFuel);
+    const color = FUEL_COLORS[activeFuel] || "#3b82f6";
     mkChart("chart-forecast", {
       type: "line",
-      data: {
-        labels: data.map(r => new Date(r.date).toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short" })),
-        datasets: [{
-          label: `${activeFuel} forecast`,
-          data: data.map(r => r.predicted_pence),
-          borderColor: FUEL_COLORS[activeFuel] || "#3b82f6",
-          backgroundColor: (FUEL_COLORS[activeFuel] || "#3b82f6") + "22",
-          fill: true, borderWidth: 2.5, pointRadius: 5, tension: 0.3,
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }
-        }
-      }
+      data: { labels: data.map(r => new Date(r.date).toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short" })),
+        datasets: [{ label: activeFuel+" forecast", data: data.map(r => r.predicted_pence),
+          borderColor: color, backgroundColor: color+"22", fill: true, borderWidth: 2.5, pointRadius: 5, tension: 0.3 }] },
+      options: { plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
     });
-    cont.style.display = "block";
-    el("forecast-placeholder")?.remove();
+    el("forecast-placeholder").style.display = "none";
   } catch {
-    if (cont) cont.innerHTML = '<div class="loading">Forecast available after first model training (1st or 15th of the month)</div>';
+    el("forecast-placeholder").innerHTML = '<div class="loading" style="padding:1rem">Forecast available after first training run (1st or 15th)</div>';
   }
 }
 
-// ── 18. Anomaly Alerts ────────────────────────────────────────────────────
+// ── 19. Anomaly Alerts ──────────────────────────────────────────────────────
 async function renderAnomalies() {
-  const cont = el("anomaly-list");
   try {
     const data = await api.anomalies(activeFuel);
-    if (!data.length) {
-      cont.innerHTML = '<div class="loading" style="color:var(--green)">✓ No anomalies detected</div>';
-      return;
-    }
-    cont.innerHTML = data.slice(0, 8).map(r => `
-      <div class="anomaly-item">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div class="a-station">${r.brand_name} — ${r.city}</div>
-            <div class="a-meta">${r.county} · ${r.fuel_type}</div>
-          </div>
-          <div style="text-align:right">
-            <div class="a-price">${parseFloat(r.price_pence).toFixed(1)}p</div>
-            <div class="a-meta">range: ${r.lower_threshold?.toFixed(1)}–${r.upper_threshold?.toFixed(1)}p</div>
-          </div>
-        </div>
-      </div>`).join("");
+    el("anomaly-list").innerHTML = !data.length
+      ? '<div class="loading" style="color:var(--green)">✓ No anomalies detected</div>'
+      : data.slice(0,8).map(r => `
+          <div class="anomaly-item">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><div class="a-station">${r.brand_name} — ${r.city}</div><div class="a-meta">${r.county} · ${r.fuel_type}</div></div>
+              <div style="text-align:right">
+                <div class="a-price">${parseFloat(r.price_pence).toFixed(1)}p</div>
+                <div class="a-meta">range: ${r.lower_threshold?.toFixed(1)}–${r.upper_threshold?.toFixed(1)}p</div>
+              </div>
+            </div>
+          </div>`).join("");
   } catch {
-    cont.innerHTML = '<div class="loading">Anomaly data available after first model training</div>';
+    el("anomaly-list").innerHTML = '<div class="loading">Anomaly detection available after first training run</div>';
   }
 }
 
-// ── 19. XGBoost Price Predictor ────────────────────────────────────────────
-async function initPredictor() {
+// ── 20a. Predicted Cheapest Stations (XGBoost, pre-computed) ────────────────
+async function renderPredictedCheapest() {
   try {
-    const stations = await api.stations();
-    const sel = el("pred-station");
-    stations.slice(0, 200).forEach(s => {
-      const opt = document.createElement("option");
-      opt.value = s.node_id;
-      opt.textContent = `${s.brand_name} — ${s.city}, ${s.county}`;
-      sel.appendChild(opt);
-    });
-  } catch {}
-
-  el("pred-btn")?.addEventListener("click", async () => {
-    const node = el("pred-station").value;
-    const ft = el("pred-fuel").value;
-    const res = el("pred-result");
-    res.innerHTML = '<div class="loading">Predicting…</div>';
-    try {
-      const data = await api.predict(node, ft);
-      res.innerHTML = `
-        <div class="predict-result">
-          <div class="p-val">${data.predicted_pence}p</div>
-          <div class="p-label">predicted price for ${ft}</div>
-        </div>`;
-    } catch {
-      res.innerHTML = '<div class="loading">Prediction available after first model training</div>';
-    }
-  });
+    const data = await api.predictedCheapest(activeFuel);
+    el("predicted-cheapest").innerHTML = `<table>
+      <thead><tr><th class="rank">#</th><th>Brand</th><th>City</th><th>County</th><th>Predicted</th></tr></thead>
+      <tbody>${data.map((r,i) => `<tr>
+        <td class="rank">${i+1}</td>
+        <td style="font-weight:500">${r.brand_name}</td>
+        <td>${r.city}</td>
+        <td style="color:var(--muted)">${r.county}</td>
+        <td style="color:var(--green);font-weight:700">${r.predicted_pence}p</td>
+      </tr>`).join("")}
+      </tbody></table>`;
+  } catch {
+    el("predicted-cheapest").innerHTML = '<div class="loading">Predictions available after first training run (1st or 15th)</div>';
+  }
 }
 
-// ── 20. Recent Price Updates Feed ─────────────────────────────────────────
+// ── 20b. Recent Price Feed ──────────────────────────────────────────────────
 async function renderFeed() {
   try {
     const data = await api.prices(activeFuel, 20);
     el("price-feed").innerHTML = data.map(r => `
       <div class="feed-item">
-        <div>
-          <div class="feed-station">${r.brand_name}</div>
-          <div class="feed-meta">${r.city}, ${r.county}</div>
-        </div>
+        <div><div class="feed-station">${r.brand_name}</div><div class="feed-meta">${r.city}, ${r.county}</div></div>
         <div style="text-align:right">
           <div class="feed-price">${parseFloat(r.price_pence).toFixed(1)}p</div>
-          <div class="feed-meta">${formatTime(r.recorded_at)}</div>
+          <div class="feed-meta">${fmtDate(r.recorded_at)}</div>
         </div>
       </div>`).join("");
   } catch {}
 }
 
-// ── Fuel Tab Switching ─────────────────────────────────────────────────────
+// ── Refresh on fuel change ──────────────────────────────────────────────────
 function refreshFuelDependents() {
-  renderDayOfWeek();
-  renderMonthly();
-  renderDistribution();
-  renderMap();
-  renderCheapestCounties();
-  renderCountyPriceRanking();
-  renderBrandPrice();
-  renderBrandShare();
-  renderForecast();
-  renderAnomalies();
-  renderFeed();
+  renderDayOfWeek(); renderMonthly(); renderDistribution();
+  renderMap(); renderCheapestCounties(); renderCountyPriceRanking();
+  renderBrandPrice(); renderBrandShare();
+  renderForecast(); renderAnomalies();
+  renderPredictedCheapest(); renderFeed();
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
+// ── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-  // Fuel tab listeners
   document.querySelectorAll(".fuel-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".fuel-tab").forEach(b => b.classList.remove("active"));
@@ -592,10 +466,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // Render all components
   await Promise.all([
     renderSummaryCards(),
-    renderSummaryStats(),
+    renderStatusCard(),
     renderFuelComparison(),
     renderPriceChangeCards(),
     renderPriceTrend(),
@@ -605,5 +478,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   ]);
 
   refreshFuelDependents();
-  initPredictor();
+  setTimeout(showCacheBanner, 2000);
 });

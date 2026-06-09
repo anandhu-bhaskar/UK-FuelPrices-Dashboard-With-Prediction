@@ -16,7 +16,6 @@
   <span id="last-updated">Loading…</span>
 </header>
 
-<!-- Fuel type selector -->
 <div class="fuel-tabs">
   <button class="fuel-tab active" data-fuel="E10">E10 (Petrol)</button>
   <button class="fuel-tab" data-fuel="E5">E5 (Super)</button>
@@ -30,28 +29,28 @@
   <section>
     <div class="section-title">National Averages — Today</div>
     <div class="grid-4" id="summary-cards">
-      <div class="card skeleton" style="height:120px"></div>
-      <div class="card skeleton" style="height:120px"></div>
-      <div class="card skeleton" style="height:120px"></div>
-      <div class="card skeleton" style="height:120px"></div>
+      <div class="card skeleton" style="height:110px"></div>
+      <div class="card skeleton" style="height:110px"></div>
+      <div class="card skeleton" style="height:110px"></div>
+      <div class="card skeleton" style="height:110px"></div>
     </div>
   </section>
 
-  <!-- ② Summary Stats + ③ Fuel Type Comparison -->
+  <!-- ② System Status Card + ③ Fuel Type Comparison -->
   <section class="grid-2">
     <div class="card">
-      <div class="card-title">Overview</div>
-      <div class="stat-row" id="stats-bar"><div class="loading">Loading…</div></div>
+      <div class="card-title">System Status &amp; Last Updated</div>
+      <div id="status-card"><div class="loading">Loading…</div></div>
     </div>
     <div class="card">
       <div class="card-title">Fuel Type Price Comparison</div>
-      <div class="chart-wrap" style="height:100px"><canvas id="chart-fuel-compare"></canvas></div>
+      <div class="chart-wrap" style="height:120px"><canvas id="chart-fuel-compare"></canvas></div>
     </div>
   </section>
 
   <!-- ④ Price Change Cards -->
   <section>
-    <div class="section-title">Price Changes</div>
+    <div class="section-title">Price Changes vs Historical</div>
     <div class="grid-4" id="change-cards">
       <div class="card skeleton" style="height:80px"></div>
       <div class="card skeleton" style="height:80px"></div>
@@ -64,14 +63,14 @@
   <section>
     <div class="section-title">Price Trends</div>
     <div class="card">
-      <div class="card-title">30-Day National Average Price</div>
+      <div class="card-title">30-Day National Average Price (all fuel types)</div>
       <div class="chart-wrap" style="height:220px"><canvas id="chart-trend"></canvas></div>
     </div>
   </section>
 
   <!-- ⑥ Day of Week + ⑦ Monthly + ⑧ Distribution -->
   <section>
-    <div class="section-title">Patterns (selected fuel type)</div>
+    <div class="section-title">Patterns — selected fuel type</div>
     <div class="grid-3">
       <div class="card">
         <div class="card-title">Cheapest Day of Week</div>
@@ -90,18 +89,18 @@
 
   <!-- ⑨ Map -->
   <section>
-    <div class="section-title">Station Map (selected fuel type — green=cheap, red=expensive)</div>
+    <div class="section-title">Station Map — green = cheap, red = expensive</div>
     <div class="card" style="padding:0.75rem">
       <div id="map"></div>
     </div>
   </section>
 
-  <!-- ⑩ Cheapest Counties + ⑪ Station Count + ⑫ Most Expensive Counties -->
+  <!-- ⑩ Cheapest Counties + ⑪ Station Count + ⑫ Most Expensive -->
   <section>
     <div class="section-title">Geographic Analysis</div>
     <div class="grid-3">
       <div class="card">
-        <div class="card-title">Cheapest Counties (selected fuel)</div>
+        <div class="card-title">Cheapest Counties</div>
         <div id="table-cheapest-counties"><div class="loading">Loading…</div></div>
       </div>
       <div class="card">
@@ -109,28 +108,28 @@
         <div class="chart-wrap" style="height:260px"><canvas id="chart-station-county"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Most Expensive Counties (selected fuel)</div>
+        <div class="card-title">Most Expensive Counties</div>
         <div id="table-expensive-counties"><div class="loading">Loading…</div></div>
       </div>
     </div>
   </section>
 
-  <!-- ⑬ Brand Price + ⑭ Brand Market Share -->
+  <!-- ⑬ Brand Price + ⑭ Brand Share -->
   <section>
-    <div class="section-title">Brand Analysis (selected fuel type)</div>
+    <div class="section-title">Brand Analysis</div>
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Average Price by Brand</div>
         <div class="chart-wrap" style="height:300px"><canvas id="chart-brand-price"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Brand Market Share (by station count)</div>
+        <div class="card-title">Brand Market Share (station count)</div>
         <div class="chart-wrap" style="height:300px"><canvas id="chart-brand-share"></canvas></div>
       </div>
     </div>
   </section>
 
-  <!-- ⑮ Motorway vs Regular + ⑯ Supermarket vs Regular -->
+  <!-- ⑮ Motorway + ⑯ Supermarket -->
   <section>
     <div class="section-title">Station Type Comparison</div>
     <div class="grid-2">
@@ -151,52 +150,36 @@
     <div class="grid-2">
       <div class="card">
         <div class="card-title">7-Day Price Forecast (SNARIMAX)</div>
-        <div id="forecast-content" class="chart-wrap" style="height:200px">
+        <div id="forecast-placeholder" class="chart-wrap" style="height:200px">
           <canvas id="chart-forecast"></canvas>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Anomaly Alerts (Z-score outliers)</div>
-        <div id="anomaly-list" style="max-height:220px;overflow-y:auto">
-          <div class="loading">Loading…</div>
-        </div>
+        <div class="card-title">Anomaly Alerts (Z-score)</div>
+        <div id="anomaly-list" style="max-height:220px;overflow-y:auto"><div class="loading">Loading…</div></div>
       </div>
     </div>
   </section>
 
-  <!-- ⑲ Price Predictor + ⑳ Recent Updates -->
+  <!-- ⑲ Predicted Cheapest Stations + ⑳ Recent Feed -->
   <section>
-    <div class="section-title">Tools & Live Feed</div>
+    <div class="section-title">XGBoost Predictions &amp; Live Feed</div>
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">XGBoost Price Predictor</div>
-        <div class="predictor-form">
-          <select id="pred-station"><option value="">— Select a station —</option></select>
-          <select id="pred-fuel">
-            <option value="E10">E10 (Petrol)</option>
-            <option value="E5">E5 (Super Petrol)</option>
-            <option value="B7">B7 (Diesel)</option>
-            <option value="SDV">SDV (Super Diesel)</option>
-          </select>
-          <button id="pred-btn">Predict Price</button>
-        </div>
-        <div id="pred-result"></div>
+        <div class="card-title">Top 10 Predicted Cheapest Stations (XGBoost)</div>
+        <div id="predicted-cheapest" style="overflow-x:auto"><div class="loading">Loading…</div></div>
       </div>
       <div class="card">
-        <div class="card-title">Recent Price Updates (selected fuel)</div>
-        <div id="price-feed" style="max-height:260px;overflow-y:auto">
-          <div class="loading">Loading…</div>
-        </div>
+        <div class="card-title">Recent Price Updates</div>
+        <div id="price-feed" style="max-height:280px;overflow-y:auto"><div class="loading">Loading…</div></div>
       </div>
     </div>
   </section>
 
 </main>
 
-<!-- CDN libraries -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="js/dashboard.js"></script>
-
 </body>
 </html>

@@ -35,6 +35,41 @@ CREATE INDEX IF NOT EXISTS idx_fuel_prices_fuel_type
 CREATE INDEX IF NOT EXISTS idx_fuel_prices_node
     ON fuel_prices (node_id, recorded_at DESC);
 
+-- ML result cache tables — written by Azure Functions, read by API
+CREATE TABLE IF NOT EXISTS ml_forecasts (
+    fuel_type       TEXT NOT NULL,
+    forecast_date   DATE NOT NULL,
+    predicted_pence NUMERIC(6, 2) NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (fuel_type, forecast_date)
+);
+
+CREATE TABLE IF NOT EXISTS ml_anomalies (
+    node_id         TEXT NOT NULL,
+    fuel_type       TEXT NOT NULL,
+    price_pence     NUMERIC(6, 2) NOT NULL,
+    lower_threshold NUMERIC(6, 2),
+    upper_threshold NUMERIC(6, 2),
+    detected_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (node_id, fuel_type)
+);
+
+CREATE TABLE IF NOT EXISTS ml_predictions (
+    node_id         TEXT NOT NULL,
+    fuel_type       TEXT NOT NULL,
+    predicted_pence NUMERIC(6, 2) NOT NULL,
+    brand_name      TEXT,
+    city            TEXT,
+    county          TEXT,
+    latitude        DOUBLE PRECISION,
+    longitude       DOUBLE PRECISION,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (node_id, fuel_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ml_predictions_fuel
+    ON ml_predictions (fuel_type, predicted_pence ASC);
+
 CREATE TABLE IF NOT EXISTS ingest_log (
     id                   BIGSERIAL PRIMARY KEY,
     ran_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
