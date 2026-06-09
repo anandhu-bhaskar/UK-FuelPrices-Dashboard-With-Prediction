@@ -1,0 +1,43 @@
+name: Weekly UK Fuel Ingest
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"   # Every Monday at 00:00 UTC
+  workflow_dispatch:        # Manual trigger from GitHub UI
+
+jobs:
+  ingest:
+    name: Download & load UK fuel data
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY:      ${{ secrets.KAGGLE_KEY }}
+      DB_HOST:         ${{ secrets.DB_HOST }}
+      DB_PORT:         ${{ secrets.DB_PORT }}
+      DB_NAME:         ${{ secrets.DB_NAME }}
+      DB_USER:         ${{ secrets.DB_USER }}
+      DB_PASSWORD:     ${{ secrets.DB_PASSWORD }}
+      DB_SSL_MODE:     require
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run ingest
+        run: python scripts/ingest.py
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Ingest job failed. Check the logs above."

@@ -1,0 +1,30 @@
+# Secrets — never commit
+local.settings.json
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.python_packages/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Kaggle credentials
+~/.kaggle/kaggle.json
+kaggle.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Notebooks (outputs can be large; commit .ipynb files manually if needed)
+*.ipynb_checkpoints/
