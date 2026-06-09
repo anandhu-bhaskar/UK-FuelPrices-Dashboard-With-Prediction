@@ -183,7 +183,7 @@ main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem;
   line-height: 1.1;
   margin: 0.25rem 0;
   letter-spacing: -0.02em;
-  color: #767676;
+  color: #006E74;
 }
 .stat-card .price-sub {
   font-size: 0.72rem;
