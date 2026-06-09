@@ -4,10 +4,17 @@ import { api, usingCache } from "./api.js";
 let activeFuel = "E10";
 let map, markersLayer;
 
+// Brand data-viz series colours (Design System v1.0)
+// Series: dark teal · light teal · teal tint · purple · burnt orange · amber
 const FUEL_COLORS = {
-  E10: "#2563eb", E5: "#0891b2",
-  B7: "#7c3aed", B7_STANDARD: "#7c3aed", B7_PREMIUM: "#9333ea",
-  SDV: "#059669", HVO: "#059669", B10: "#0d9488"
+  E10:         "#006E74",  // 1st series – dark teal
+  E5:          "#0097AC",  // 2nd series – light teal
+  B7:          "#5B4FA8",  // 4th series – purple
+  B7_STANDARD: "#5B4FA8",
+  B7_PREMIUM:  "#A07840",  // 6th series – amber
+  SDV:         "#C4571A",  // 5th series – burnt orange
+  HVO:         "#C4571A",
+  B10:         "#80C4CA",  // 3rd series – teal tint
 };
 const FUEL_LABELS = {
   E10: "E10 (Petrol)", E5: "E5 (Super Petrol)",
@@ -25,9 +32,9 @@ function mkChart(id, config) {
   charts[id] = new Chart(ctx, config);
 }
 
-Chart.defaults.font = { family: "Inter, system-ui, sans-serif", size: 11 };
-Chart.defaults.color = "#64748b";
-const gridColor = "rgba(226,232,240,1)";
+Chart.defaults.font = { family: "'Aptos', 'Segoe UI', Arial, sans-serif", size: 11 };
+Chart.defaults.color = "#231f20";
+const gridColor = "rgba(35,31,32,0.1)";
 
 function pct(a, b) {
   if (!a || !b) return null;
@@ -61,8 +68,8 @@ function showCacheBanner() {
   banner.id = "cache-banner";
   banner.innerHTML = "⚠️ API unavailable — showing cached data. Dashboard may not reflect latest prices.";
   Object.assign(banner.style, {
-    background: "#92400e", color: "#fef3c7", padding: "0.5rem 2rem",
-    fontSize: "0.8rem", textAlign: "center",
+    background: "#fff3e0", color: "#8a4a00", padding: "0.5rem 2rem",
+    fontSize: "0.8rem", borderBottom: "1px solid #fcd34d",
   });
   document.body.insertBefore(banner, document.querySelector("main"));
 }
@@ -75,11 +82,11 @@ async function renderSummaryCards() {
     el("summary-cards").innerHTML = summary.map(r => {
       const ch = changeMap[r.fuel_type] || {};
       const d7 = pct(ch.current_avg, ch.week_ago_avg);
-      const color = FUEL_COLORS[r.fuel_type] || "#3b82f6";
+      const color = FUEL_COLORS[r.fuel_type] || "#006E74";
       return `
         <div class="card stat-card">
           <div class="fuel-label" style="color:${color}">${FUEL_LABELS[r.fuel_type] || r.fuel_type}</div>
-          <div class="price-big" style="color:${color}">${r.avg_price}p</div>
+          <div class="price-big">${r.avg_price}p</div>
           <div class="price-sub">avg today · ${parseInt(r.station_count).toLocaleString()} stations</div>
           <div style="margin-top:0.5rem">${badgeHtml(d7)} <span style="font-size:0.7rem;color:var(--muted)">vs 7d ago</span></div>
         </div>`;
@@ -94,8 +101,8 @@ async function renderStatusCard() {
   try {
     const s = await api.status();
     const dot = (val) => val
-      ? `<span style="color:var(--green)">●</span>`
-      : `<span style="color:var(--muted)">○</span>`;
+      ? `<span style="color:#1A7A3C">●</span>`
+      : `<span style="color:#6a6566">○</span>`;
     el("status-card").innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
         <div>
@@ -127,8 +134,8 @@ async function renderStatusCard() {
     setTimeout(() => {
       const src = el("source-indicator");
       if (src) {
-        if (usingCache) { src.textContent = "Cached ⚠️"; src.style.color = "var(--yellow)"; }
-        else { src.style.color = "var(--green)"; }
+        if (usingCache) { src.textContent = "Cached ⚠️"; src.style.color = "#C4571A"; }
+        else { src.style.color = "#1A7A3C"; }
       }
     }, 1000);
   } catch { el("status-card").innerHTML = '<div class="error-msg">Status unavailable</div>'; }
@@ -142,7 +149,7 @@ async function renderFuelComparison() {
       type: "bar",
       data: {
         labels: data.map(r => r.fuel_type),
-        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map(r => FUEL_COLORS[r.fuel_type] || "#2563eb"), borderRadius: 4 }]
+        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map(r => FUEL_COLORS[r.fuel_type] || "#006E74"), borderRadius: 4 }]
       },
       options: { indexAxis: "y", plugins: { legend: { display: false } },
         scales: { x: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }, y: { grid: { display: false } } } }
@@ -157,10 +164,10 @@ async function renderPriceChangeCards() {
     el("change-cards").innerHTML = data.map(r => {
       const d7 = pct(r.current_avg, r.week_ago_avg);
       const d30 = pct(r.current_avg, r.month_ago_avg);
-      const color = FUEL_COLORS[r.fuel_type] || "#3b82f6";
+      const color = FUEL_COLORS[r.fuel_type] || "#006E74";
       return `
         <div class="card">
-          <div class="card-title" style="color:${color}">${r.fuel_type} Price Change</div>
+          <div class="card-title">${FUEL_LABELS[r.fuel_type] || r.fuel_type} price change</div>
           <div style="display:flex;gap:1.5rem;align-items:center">
             <div><div style="font-size:0.7rem;color:var(--muted)">vs 7 days</div><div style="margin-top:0.2rem">${badgeHtml(d7)}</div></div>
             <div><div style="font-size:0.7rem;color:var(--muted)">vs 30 days</div><div style="margin-top:0.2rem">${badgeHtml(d30)}</div></div>
@@ -188,7 +195,7 @@ async function renderPriceTrend() {
     mkChart("chart-trend", {
       type: "line",
       data: { labels: dates.map(d => new Date(d).toLocaleDateString("en-GB", { day:"numeric", month:"short" })),
-        datasets: fuels.map(f => ({ label: FUEL_LABELS[f] || f, data: byFuel[f], borderColor: FUEL_COLORS[f] || "#2563eb",
+        datasets: fuels.map(f => ({ label: FUEL_LABELS[f] || f, data: byFuel[f], borderColor: FUEL_COLORS[f] || "#006E74",
           backgroundColor: "transparent", borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true })) },
       options: { plugins: { legend: { position: "top" } },
         scales: { x: { grid: { color: gridColor }, ticks: { maxTicksLimit: 8 } },
@@ -206,7 +213,7 @@ async function renderDayOfWeek() {
       type: "bar",
       data: { labels: data.map(r => DOW[r.day_of_week]),
         datasets: [{ data: data.map(r => r.avg_price),
-          backgroundColor: data.map(r => r.avg_price === min ? FUEL_COLORS[activeFuel] || "#2563eb" : "#e2e8f0"),
+          backgroundColor: data.map(r => r.avg_price === min ? FUEL_COLORS[activeFuel] || "#006E74" : "#e5f2f3"),
           borderRadius: 5 }] },
       options: { plugins: { legend: { display: false } },
         scales: { x: { grid: { display: false } },
@@ -219,7 +226,7 @@ async function renderDayOfWeek() {
 async function renderMonthly() {
   try {
     const data = await api.byMonth(activeFuel);
-    const color = FUEL_COLORS[activeFuel] || "#2563eb";
+    const color = FUEL_COLORS[activeFuel] || "#006E74";
     mkChart("chart-monthly", {
       type: "line",
       data: { labels: data.map(r => MONTHS[r.month - 1]),
@@ -235,7 +242,7 @@ async function renderMonthly() {
 async function renderDistribution() {
   try {
     const data = await api.distribution(activeFuel);
-    const color = FUEL_COLORS[activeFuel] || "#2563eb";
+    const color = FUEL_COLORS[activeFuel] || "#006E74";
     mkChart("chart-dist", {
       type: "bar",
       data: { labels: data.map(r => r.bucket + "p"),
@@ -302,7 +309,7 @@ async function renderStationByCounty() {
     mkChart("chart-station-county", {
       type: "bar",
       data: { labels: data.map(r => r.county),
-        datasets: [{ data: data.map(r => r.station_count), backgroundColor: "#0891b233", borderColor: "#0891b2", borderWidth: 1.5, borderRadius: 4 }] },
+        datasets: [{ data: data.map(r => r.station_count), backgroundColor: "#0097AC33", borderColor: "#0097AC", borderWidth: 1.5, borderRadius: 4 }] },
       options: { indexAxis: "y", plugins: { legend: { display: false } },
         scales: { x: { grid: { color: gridColor } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
     });
@@ -328,7 +335,7 @@ async function renderBrandPrice() {
     mkChart("chart-brand-price", {
       type: "bar",
       data: { labels: data.map(r => r.brand_name),
-        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: "#2563eb99", borderColor: "#2563eb", borderWidth: 1, borderRadius: 4 }] },
+        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: "#006E7466", borderColor: "#006E74", borderWidth: 1, borderRadius: 4 }] },
       options: { indexAxis: "y", plugins: { legend: { display: false } },
         scales: { x: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
     });
@@ -346,7 +353,7 @@ async function renderBrandShare() {
     if (others > 0) { labels.push("Others"); vals.push(others); }
     mkChart("chart-brand-share", {
       type: "doughnut",
-      data: { labels, datasets: [{ data: vals, backgroundColor: ["#2563eb","#0891b2","#7c3aed","#059669","#d97706","#dc2626","#0d9488","#6366f1","#0369a1","#9333ea","#64748b"], borderColor: "#ffffff", borderWidth: 2 }] },
+      data: { labels, datasets: [{ data: vals, backgroundColor: ["#006E74","#0097AC","#5B4FA8","#C4571A","#A07840","#80C4CA","#1A7A3C","#B91C1C","#004f54","#7B6FA0","#6a6566"], borderColor: "#ffffff", borderWidth: 2 }] },
       options: { plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 10 } } } }, cutout: "65%" }
     });
   } catch {}
@@ -360,8 +367,8 @@ async function renderMotorwayCompare() {
     mkChart("chart-motorway", {
       type: "bar",
       data: { labels: fuels, datasets: [
-        { label: "Motorway", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===1)?.avg_price??0), backgroundColor: "#dc262633", borderColor: "#dc2626", borderWidth: 1.5, borderRadius: 4 },
-        { label: "Regular",  data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===0)?.avg_price??0), backgroundColor: "#2563eb33", borderColor: "#2563eb", borderWidth: 1.5, borderRadius: 4 }
+        { label: "Motorway", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===1)?.avg_price??0), backgroundColor: "#C4571A33", borderColor: "#C4571A", borderWidth: 1.5, borderRadius: 4 },
+        { label: "Regular",  data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===0)?.avg_price??0), backgroundColor: "#006E7433", borderColor: "#006E74", borderWidth: 1.5, borderRadius: 4 }
       ]},
       options: { plugins: { legend: { position: "top" } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
@@ -377,8 +384,8 @@ async function renderSupermarketCompare() {
     mkChart("chart-supermarket", {
       type: "bar",
       data: { labels: fuels, datasets: [
-        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#05996933", borderColor: "#059669", borderWidth: 1.5, borderRadius: 4 },
-        { label: "Regular",    data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===0)?.avg_price??0), backgroundColor: "#2563eb33", borderColor: "#2563eb", borderWidth: 1.5, borderRadius: 4 }
+        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#5B4FA833", borderColor: "#5B4FA8", borderWidth: 1.5, borderRadius: 4 },
+        { label: "Regular",    data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===0)?.avg_price??0), backgroundColor: "#006E7433", borderColor: "#006E74", borderWidth: 1.5, borderRadius: 4 }
       ]},
       options: { plugins: { legend: { position: "top" } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
@@ -390,7 +397,7 @@ async function renderSupermarketCompare() {
 async function renderForecast() {
   try {
     const data = await api.forecast(activeFuel);
-    const color = FUEL_COLORS[activeFuel] || "#2563eb";
+    const color = FUEL_COLORS[activeFuel] || "#006E74";
     if (!data.length) throw new Error("no data");
     mkChart("chart-forecast", {
       type: "line",
@@ -413,7 +420,7 @@ async function renderAnomalies() {
   try {
     const data = await api.anomalies(activeFuel);
     el("anomaly-list").innerHTML = !data.length
-      ? '<div class="loading" style="color:var(--green)">✓ No anomalies detected</div>'
+      ? '<div class="loading" style="color:#1A7A3C;font-weight:500">✓ No anomalies detected</div>'
       : data.slice(0,8).map(r => `
           <div class="anomaly-item">
             <div style="display:flex;justify-content:space-between;align-items:center">
