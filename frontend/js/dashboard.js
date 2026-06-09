@@ -35,6 +35,8 @@ function mkChart(id, config) {
 
 Chart.defaults.font = { family: "'Aptos', 'Segoe UI', Arial, sans-serif", size: 11 };
 Chart.defaults.color = "#231f20";
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
 const gridColor = "rgba(35,31,32,0.1)";
 
 function pct(a, b) {

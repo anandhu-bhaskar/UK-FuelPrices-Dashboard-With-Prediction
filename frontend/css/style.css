@@ -281,8 +281,8 @@ tbody tr:hover td { background: var(--teal-bg); }
 .error-msg { color: #a0160a;      font-size: 0.8rem; }
 
 /* ── Chart containers ────────────────────────────────────────────────────── */
-.chart-wrap { position: relative; }
-canvas { max-width: 100%; }
+.chart-wrap { position: relative; width: 100%; }
+canvas { display: block; width: 100% !important; height: 100% !important; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
