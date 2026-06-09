@@ -141,12 +141,14 @@ main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem;
 
 /* ── Card aura keyframes — cycles through full brand palette ─────────────── */
 @keyframes aura-cycle {
-  0%   { box-shadow: 0 0 0 1px rgba(0,110,116,0.25),  0 0 18px 5px rgba(0,110,116,0.15),  0 0 40px 10px rgba(0,110,116,0.07),  0 8px 24px rgba(35,31,32,0.08); }
-  20%  { box-shadow: 0 0 0 1px rgba(0,151,172,0.25),  0 0 18px 5px rgba(0,151,172,0.15),  0 0 40px 10px rgba(0,151,172,0.07),  0 8px 24px rgba(35,31,32,0.08); }
-  40%  { box-shadow: 0 0 0 1px rgba(128,196,202,0.25),0 0 18px 5px rgba(128,196,202,0.15),0 0 40px 10px rgba(128,196,202,0.07),0 8px 24px rgba(35,31,32,0.08); }
-  60%  { box-shadow: 0 0 0 1px rgba(196,87,26,0.25),  0 0 18px 5px rgba(196,87,26,0.15),  0 0 40px 10px rgba(196,87,26,0.07),  0 8px 24px rgba(35,31,32,0.08); }
-  80%  { box-shadow: 0 0 0 1px rgba(160,120,64,0.25), 0 0 18px 5px rgba(160,120,64,0.15), 0 0 40px 10px rgba(160,120,64,0.07), 0 8px 24px rgba(35,31,32,0.08); }
-  100% { box-shadow: 0 0 0 1px rgba(0,110,116,0.25),  0 0 18px 5px rgba(0,110,116,0.15),  0 0 40px 10px rgba(0,110,116,0.07),  0 8px 24px rgba(35,31,32,0.08); }
+  0%    { box-shadow: 0 0 0 1px rgba(0,110,116,0.15),   0 0 18px 5px rgba(0,110,116,0.09),   0 0 40px 10px rgba(0,110,116,0.04),   0 8px 24px rgba(35,31,32,0.07); }
+  14%   { box-shadow: 0 0 0 1px rgba(0,79,84,0.15),     0 0 18px 5px rgba(0,79,84,0.09),     0 0 40px 10px rgba(0,79,84,0.04),     0 8px 24px rgba(35,31,32,0.07); }
+  28%   { box-shadow: 0 0 0 1px rgba(0,151,172,0.15),   0 0 18px 5px rgba(0,151,172,0.09),   0 0 40px 10px rgba(0,151,172,0.04),   0 8px 24px rgba(35,31,32,0.07); }
+  42%   { box-shadow: 0 0 0 1px rgba(128,196,202,0.15), 0 0 18px 5px rgba(128,196,202,0.09), 0 0 40px 10px rgba(128,196,202,0.04), 0 8px 24px rgba(35,31,32,0.07); }
+  57%   { box-shadow: 0 0 0 1px rgba(196,87,26,0.15),   0 0 18px 5px rgba(196,87,26,0.09),   0 0 40px 10px rgba(196,87,26,0.04),   0 8px 24px rgba(35,31,32,0.07); }
+  71%   { box-shadow: 0 0 0 1px rgba(160,120,64,0.15),  0 0 18px 5px rgba(160,120,64,0.09),  0 0 40px 10px rgba(160,120,64,0.04),  0 8px 24px rgba(35,31,32,0.07); }
+  85%   { box-shadow: 0 0 0 1px rgba(185,28,28,0.15),   0 0 18px 5px rgba(185,28,28,0.09),   0 0 40px 10px rgba(185,28,28,0.04),   0 8px 24px rgba(35,31,32,0.07); }
+  100%  { box-shadow: 0 0 0 1px rgba(0,110,116,0.15),   0 0 18px 5px rgba(0,110,116,0.09),   0 0 40px 10px rgba(0,110,116,0.04),   0 8px 24px rgba(35,31,32,0.07); }
 }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
