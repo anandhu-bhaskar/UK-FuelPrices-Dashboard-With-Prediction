@@ -46,7 +46,7 @@ body {
 
 /* ── Header (primary nav — dark teal) ────────────────────────────────────── */
 header {
-  background: var(--primary);
+  background: #000000;
   border-bottom: none;
   padding: 0.875rem 2rem;
   display: flex;
