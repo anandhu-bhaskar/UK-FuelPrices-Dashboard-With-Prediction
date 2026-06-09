@@ -92,7 +92,7 @@ def main() -> None:
     try:
         conn = get_connection()
         latest = get_latest_recorded_at(conn)
-        logger.info("Latest recorded_at in DB: %s", latest)
+        logger.info("Latest price in DB: %s", latest)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             download_dataset(tmpdir)
