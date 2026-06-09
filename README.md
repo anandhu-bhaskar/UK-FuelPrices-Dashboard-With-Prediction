@@ -6,6 +6,10 @@
 
 ---
 
+[![Dashboard Demo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnU5amlsYTcwM2kybjVheno1a3BwNGtka2IwbjA4Nmo1Y3l1MTBqOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Ql0qph2lFZmQzgesXB/giphy.gif)](https://www.awesomescreenshot.com/video/53428053?key=925a2addb4b4fcc6ed6f7be7b95df880)
+
+---
+
 A full-stack, cloud-deployed data engineering and machine learning project built around real-world UK fuel pricing data. The system ingests weekly price readings from thousands of UK filling stations, stores them in a cloud PostgreSQL database, trains three machine learning models on a biweekly schedule, and serves everything through a serverless REST API to an interactive browser dashboard.
 
 All infrastructure is fully automated — data arrives without manual intervention, models retrain on a schedule, and every code push to `main` triggers a targeted deployment through GitHub Actions CI/CD.
