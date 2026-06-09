@@ -4,7 +4,16 @@ import { api, usingCache } from "./api.js";
 let activeFuel = "E10";
 let map, markersLayer;
 
-const FUEL_COLORS = { E5: "#3b82f6", E10: "#22c55e", B7: "#f97316", SDV: "#a855f7" };
+const FUEL_COLORS = {
+  E5: "#3b82f6", E10: "#22c55e", B7: "#f97316", SDV: "#a855f7",
+  B7_STANDARD: "#f97316", B7_PREMIUM: "#fb923c",
+  B10: "#84cc16", HVO: "#a855f7"
+};
+const FUEL_LABELS = {
+  E10: "E10 (Petrol)", E5: "E5 (Super Petrol)",
+  B7: "B7 (Diesel)", B7_STANDARD: "B7 (Diesel)", B7_PREMIUM: "B7 Premium (Diesel)",
+  SDV: "SDV (Super Diesel)", HVO: "HVO (Super Diesel)", B10: "B10 (Biofuel)"
+};
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -69,7 +78,7 @@ async function renderSummaryCards() {
       const color = FUEL_COLORS[r.fuel_type] || "#3b82f6";
       return `
         <div class="card stat-card">
-          <div class="fuel-label" style="color:${color}">${r.fuel_type}</div>
+          <div class="fuel-label" style="color:${color}">${FUEL_LABELS[r.fuel_type] || r.fuel_type}</div>
           <div class="price-big" style="color:${color}">${r.avg_price}p</div>
           <div class="price-sub">avg today · ${parseInt(r.station_count).toLocaleString()} stations</div>
           <div style="margin-top:0.5rem">${badgeHtml(d7)} <span style="font-size:0.7rem;color:var(--muted)">vs 7d ago</span></div>
@@ -400,7 +409,7 @@ async function renderAnomalies() {
       : data.slice(0,8).map(r => `
           <div class="anomaly-item">
             <div style="display:flex;justify-content:space-between;align-items:center">
-              <div><div class="a-station">${r.brand_name} — ${r.city}</div><div class="a-meta">${r.county} · ${r.fuel_type}</div></div>
+              <div><div class="a-station">${r.brand_name} — ${r.city}</div><div class="a-meta">${r.county} · ${FUEL_LABELS[r.fuel_type]||r.fuel_type}</div></div>
               <div style="text-align:right">
                 <div class="a-price">${parseFloat(r.price_pence).toFixed(1)}p</div>
                 <div class="a-meta">range: ${r.lower_threshold?.toFixed(1)}–${r.upper_threshold?.toFixed(1)}p</div>
