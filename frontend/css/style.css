@@ -282,7 +282,7 @@ tbody tr:hover td { background: var(--teal-bg); }
 
 /* ── Chart containers ────────────────────────────────────────────────────── */
 .chart-wrap { position: relative; width: 100%; }
-canvas { display: block; width: 100% !important; height: 100% !important; }
+canvas { display: block; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
