@@ -21,10 +21,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r azure_function/requirements.txt --target azure_function/.python_packages/lib/site-packages
 
-      - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
+      - name: Login to Azure
+        uses: azure/login@v2
         with:
-          app-name: ukfuel-ml
-          package: azure_function
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
-          scm-do-build-during-deployment: false
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Zip package
+        run: cd azure_function && zip -r ../deploy.zip . -x "*.pyc" -x "__pycache__/*"
+
+      - name: Deploy via zip
+        run: |
+          az functionapp deployment source config-zip \
+            --name ukfuel-ml \
+            --resource-group uk-fuel-rg \
+            --src deploy.zip \
+            --build-remote false
