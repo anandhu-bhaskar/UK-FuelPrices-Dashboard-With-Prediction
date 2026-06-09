@@ -188,6 +188,7 @@ main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem;
   border-radius: 12px;
   padding: 1.25rem;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
   transition: background 0.35s ease, border-color 0.35s ease,
               transform 0.35s ease;
 }

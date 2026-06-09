@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="css/style.css?v=26" />
+  <link rel="stylesheet" href="css/style.css?v=27" />
 </head>
 <body>
 
@@ -180,9 +180,9 @@
         <div class="card-title">Top 10 Predicted Cheapest Stations (XGBoost)</div>
         <div id="predicted-cheapest" style="overflow-x:auto"><div class="loading">Loading…</div></div>
       </div>
-      <div class="card">
+      <div class="card" style="display:flex;flex-direction:column">
         <div class="card-title">Recent Price Updates</div>
-        <div id="price-feed" style="max-height:280px;overflow-y:auto"><div class="loading">Loading…</div></div>
+        <div id="price-feed" style="overflow-y:auto;flex:1;min-height:0"><div class="loading">Loading…</div></div>
       </div>
     </div>
   </section>
