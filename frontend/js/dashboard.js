@@ -386,6 +386,7 @@ async function renderForecast() {
   try {
     const data = await api.forecast(activeFuel);
     const color = FUEL_COLORS[activeFuel] || "#3b82f6";
+    if (!data.length) throw new Error("no data");
     mkChart("chart-forecast", {
       type: "line",
       data: { labels: data.map(r => new Date(r.date).toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short" })),
@@ -396,7 +397,9 @@ async function renderForecast() {
     });
     el("forecast-placeholder").style.display = "none";
   } catch {
-    el("forecast-placeholder").innerHTML = '<div class="loading" style="padding:1rem">Forecast available after first training run (1st or 15th)</div>';
+    el("forecast-placeholder").textContent = "Forecast unavailable for this fuel type";
+    el("forecast-placeholder").style.display = "block";
+    el("chart-forecast").style.display = "none";
   }
 }
 
