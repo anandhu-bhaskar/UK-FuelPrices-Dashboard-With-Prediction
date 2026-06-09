@@ -68,6 +68,19 @@ def ingest_prices(conn, path: str, latest_recorded_at, valid_node_ids: set) -> i
     df["recorded_at"] = pd.to_datetime(df["recorded_at"], utc=True, errors="coerce")
     df["source_updated_at"] = pd.to_datetime(df["source_updated_at"], utc=True, errors="coerce")
 
+    # Drop rows with unparseable timestamps
+    before = len(df)
+    df = df.dropna(subset=["recorded_at"])
+    if len(df) < before:
+        logger.info("Dropped %d rows with null recorded_at.", before - len(df))
+
+    # Filter price outliers — valid UK fuel prices are 100–220 pence/litre
+    before = len(df)
+    df = df[df["price_pence"].between(100, 220)]
+    if len(df) < before:
+        logger.info("Dropped %d price outlier rows (outside 100–220p range).", before - len(df))
+
+    # Drop prices with no matching station (FK safety)
     before = len(df)
     df = df[df["node_id"].isin(valid_node_ids)]
     dropped = before - len(df)
