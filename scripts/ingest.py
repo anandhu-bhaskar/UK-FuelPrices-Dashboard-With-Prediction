@@ -1,7 +1,8 @@
 """
-Standalone ingest script — runs via GitHub Actions every Monday.
-Downloads the Kaggle UK fuel dataset and delta-loads it into PostgreSQL.
+Weekly ingest: pull from Kaggle, feature-engineer, store in Neon.
 """
+
+from __future__ import annotations
 
 import logging
 import os
@@ -11,24 +12,18 @@ import zipfile
 
 import pandas as pd
 import requests
+from psycopg2.extras import execute_values
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from azure_function.shared.db import (
-    get_connection,
-    get_latest_recorded_at,
-    insert_price_history_delta,
-    log_run,
-    upsert_stations,
-)
+from azure_function.shared.db import get_connection
 
 KAGGLE_DATASET = "jamesb7/fuel-prices-uk"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+
+# ── Download ──────────────────────────────────────────────────────────────────
 
 def download_dataset(dest_dir: str) -> None:
     token = os.environ["KAGGLE_API_TOKEN"]
@@ -44,92 +39,136 @@ def download_dataset(dest_dir: str) -> None:
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(dest_dir)
     os.remove(zip_path)
-    logger.info("Downloaded files: %s", os.listdir(dest_dir))
+    logger.info("Files: %s", os.listdir(dest_dir))
 
 
-def ingest_stations(conn, path: str) -> int:
-    df = pd.read_csv(path)
-    df = df.drop(columns=["organisation_name"], errors="ignore")
+# ── Transform ─────────────────────────────────────────────────────────────────
 
+def build_features(stations_path: str, prices_path: str) -> pd.DataFrame:
+    # Load
+    df_stations = pd.read_csv(stations_path)
+    df_prices   = pd.read_csv(prices_path)
+
+    # Clean stations
+    df_stations = df_stations.drop(columns=["organisation_name"], errors="ignore")
     for col in ["brand_name", "city", "county"]:
-        if col in df.columns:
-            df[col] = df[col].fillna("Unknown")
+        df_stations[col] = df_stations[col].fillna("Unknown")
+    for col in ["is_motorway", "is_supermarket", "is_temporarily_closed", "is_permanently_closed"]:
+        df_stations[col] = df_stations[col].fillna(False).astype(int)
 
-    for col in ["first_seen", "last_seen", "updated_at"]:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], utc=True, errors="coerce")
-            df[col] = df[col].where(df[col].notna(), None)
+    # Clean prices
+    df_prices["recorded_at"] = pd.to_datetime(df_prices["recorded_at"], utc=True, errors="coerce")
+    df_prices = df_prices.dropna(subset=["recorded_at"])
+    df_prices = df_prices[df_prices["price_pence"].between(100, 220)]
 
-    return upsert_stations(conn, df.to_dict(orient="records"))
+    # Merge
+    df = df_prices.merge(
+        df_stations[[
+            "node_id", "latitude", "longitude",
+            "is_motorway", "is_supermarket", "is_temporarily_closed", "is_permanently_closed",
+            "brand_name", "city", "county",
+        ]],
+        on="node_id",
+        how="inner",
+    )
+    logger.info("After merge + clean: %d rows.", len(df))
+
+    # Time features
+    df["year"]        = df["recorded_at"].dt.year
+    df["month"]       = df["recorded_at"].dt.month
+    df["day"]         = df["recorded_at"].dt.day
+    df["day_of_week"] = df["recorded_at"].dt.dayofweek
+    df["hour"]        = df["recorded_at"].dt.hour
+
+    return df
 
 
-def ingest_prices(conn, path: str, latest_recorded_at, valid_node_ids: set) -> int:
-    df = pd.read_csv(path)
-    df["recorded_at"] = pd.to_datetime(df["recorded_at"], utc=True, errors="coerce")
-    df["source_updated_at"] = pd.to_datetime(df["source_updated_at"], utc=True, errors="coerce")
+# ── Load ──────────────────────────────────────────────────────────────────────
 
-    # Drop rows with unparseable timestamps
-    before = len(df)
-    df = df.dropna(subset=["recorded_at"])
-    if len(df) < before:
-        logger.info("Dropped %d rows with null recorded_at.", before - len(df))
+def get_latest_recorded_at(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT MAX(recorded_at) FROM fuel_prices")
+        result = cur.fetchone()
+    return result[0] if result and result[0] else None
 
-    # Filter price outliers — valid UK fuel prices are 100–220 pence/litre
-    before = len(df)
-    df = df[df["price_pence"].between(100, 220)]
-    if len(df) < before:
-        logger.info("Dropped %d price outlier rows (outside 100–220p range).", before - len(df))
 
-    # Drop prices with no matching station (FK safety)
-    before = len(df)
-    df = df[df["node_id"].isin(valid_node_ids)]
-    dropped = before - len(df)
-    if dropped:
-        logger.info("Dropped %d price rows with no matching station.", dropped)
+def insert_fuel_prices(conn, df: pd.DataFrame) -> int:
+    cols = [
+        "node_id", "recorded_at", "price_pence", "fuel_type",
+        "year", "month", "day", "day_of_week", "hour",
+        "latitude", "longitude",
+        "is_motorway", "is_supermarket", "is_temporarily_closed", "is_permanently_closed",
+        "brand_name", "city", "county",
+    ]
+    rows = [tuple(r) for r in df[cols].itertuples(index=False)]
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            """
+            INSERT INTO fuel_prices (
+                node_id, recorded_at, price_pence, fuel_type,
+                year, month, day, day_of_week, hour,
+                latitude, longitude,
+                is_motorway, is_supermarket, is_temporarily_closed, is_permanently_closed,
+                brand_name, city, county
+            ) VALUES %s
+            ON CONFLICT (node_id, fuel_type, recorded_at) DO NOTHING
+            """,
+            rows,
+            page_size=1000,
+        )
+    conn.commit()
+    return len(rows)
 
-    if latest_recorded_at is not None:
-        df = df[df["recorded_at"] > pd.Timestamp(latest_recorded_at, tz="UTC")]
 
-    if df.empty:
-        logger.info("No new price records — DB is already up to date.")
-        return 0
+def log_run(conn, rows_inserted: int, status: str, error: str | None = None) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO ingest_log (rows_inserted, status, error_message) VALUES (%s, %s, %s)",
+            (rows_inserted, status, error),
+        )
+    conn.commit()
 
-    logger.info("%d new price rows to insert.", len(df))
-    cols = ["node_id", "fuel_type", "price_pence", "recorded_at", "source_updated_at"]
-    return insert_price_history_delta(conn, df[cols].to_dict(orient="records"))
 
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
     conn = None
-    rows_stations = rows_prices = 0
+    rows_inserted = 0
     try:
         conn = get_connection()
         latest = get_latest_recorded_at(conn)
-        logger.info("Latest price in DB: %s", latest)
+        logger.info("Latest recorded_at in DB: %s", latest)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             download_dataset(tmpdir)
+            df = build_features(
+                os.path.join(tmpdir, "stations.csv"),
+                os.path.join(tmpdir, "price_history.csv"),
+            )
 
-            stations_df = pd.read_csv(os.path.join(tmpdir, "stations.csv"))
-            valid_node_ids = set(stations_df["node_id"])
-            rows_stations = ingest_stations(conn, os.path.join(tmpdir, "stations.csv"))
-            logger.info("Stations upserted: %d", rows_stations)
+        # Delta: only new rows
+        if latest is not None:
+            df = df[df["recorded_at"] > pd.Timestamp(latest, tz="UTC")]
 
-            rows_prices = ingest_prices(conn, os.path.join(tmpdir, "price_history.csv"), latest, valid_node_ids)
-            logger.info("Price rows inserted: %d", rows_prices)
+        if df.empty:
+            logger.info("No new rows — dataset not updated since last run.")
+            log_run(conn, 0, "skipped")
+            return
 
-        log_run(conn, rows_stations, rows_prices, "success")
-        logger.info("Ingest complete.")
+        logger.info("%d new rows to insert.", len(df))
+        rows_inserted = insert_fuel_prices(conn, df)
+        log_run(conn, rows_inserted, "success")
+        logger.info("Done. Inserted %d rows.", rows_inserted)
 
     except Exception as exc:
         logger.exception("Ingest failed.")
         if conn:
             try:
-                log_run(conn, rows_stations, rows_prices, "error", str(exc))
+                log_run(conn, rows_inserted, "error", str(exc))
             except Exception:
                 pass
         sys.exit(1)
-
     finally:
         if conn:
             conn.close()
