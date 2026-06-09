@@ -85,9 +85,23 @@ const REGION_LABELS = { all: "All UK", england: "England", scotland: "Scotland",
 
 async function renderSummaryCards() {
   const titleEl = document.getElementById("avg-section-title");
-  if (titleEl) titleEl.textContent = `National Averages — ${PERIOD_LABELS[activePeriod]}, ${REGION_LABELS[activeRegion]}`;
+  const periodLabel = PERIOD_LABELS[activePeriod];
+  const regionLabel = REGION_LABELS[activeRegion];
+  if (titleEl) titleEl.textContent = `National Averages — ${periodLabel}, ${regionLabel}`;
+
+  // Show skeleton while loading
+  el("summary-cards").innerHTML = `
+    <div class="card skeleton" style="height:110px"></div>
+    <div class="card skeleton" style="height:110px"></div>
+    <div class="card skeleton" style="height:110px"></div>
+    <div class="card skeleton" style="height:110px"></div>`;
+
   try {
     const [summary, changes] = await Promise.all([api.nationalAverage(activePeriod, activeRegion), api.priceChange()]);
+    if (!summary.length) {
+      el("summary-cards").innerHTML = `<div class="loading">No data for ${regionLabel}</div>`;
+      return;
+    }
     const changeMap = Object.fromEntries(changes.map(r => [r.fuel_type, r]));
     el("summary-cards").innerHTML = summary.map(r => {
       const ch = changeMap[r.fuel_type] || {};
@@ -97,7 +111,7 @@ async function renderSummaryCards() {
         <div class="card stat-card" style="border-left:3px solid ${color}">
           <div class="fuel-label" style="color:${color}">${FUEL_LABELS[r.fuel_type] || r.fuel_type}</div>
           <div class="price-big">${r.avg_price}p</div>
-          <div class="price-sub">avg today · ${parseInt(r.station_count).toLocaleString()} stations</div>
+          <div class="price-sub">${periodLabel} · ${parseInt(r.station_count).toLocaleString()} stations</div>
           <div style="margin-top:0.5rem">${badgeHtml(d7)} <span style="font-size:0.7rem;color:var(--muted)">vs 7d ago</span></div>
         </div>`;
     }).join("");
