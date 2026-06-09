@@ -1,8 +1,9 @@
 /* ── Brand tokens ────────────────────────────────────────────────────────────
-   Source: UI/UX Design System v1.0
+   Source: UI/UX Design System v2.0
    Primary:  Dark teal #006E74 · Light teal #0097AC · Soft black #231F20
-   Data viz: #006E74 · #0097AC · #80C4CA · #5B4FA8 · #C4571A · #A07840
-   Status:   Success #1A7A3C · Warning #C4571A · Error #B91C1C
+   Data viz: #006E74 · #0097AC · #80C4CA · #C4571A · #A07840
+             (purple removed in v2; CVD-safe = teal + orange + amber)
+   Status:   Warning #C4571A · Error #B91C1C  (success green removed in v2)
 ────────────────────────────────────────────────────────────────────────── */
 :root {
   --bg:           #eeeeee;
@@ -21,15 +22,14 @@
   --teal-tint:    #80c4ca;
   --teal-bg:      #e5f2f3;
 
-  --green:        #1a7a3c;
-  --green-bg:     #e6f4ea;
   --red:          #b91c1c;
   --red-bg:       #fce8e6;
   --warning:      #c4571a;
   --warning-bg:   #fff3e0;
   --warning-text: #8a4a00;
   --amber:        #a07840;
-  --purple:       #5b4fa8;
+  --info-bg:      #e6f1fb;
+  --info-text:    #185fa5;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -186,10 +186,10 @@ main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem;
   font-weight: 600;
 }
 /* Price up = bad = error */
-.badge.up   { background: var(--red-bg);     color: #a0160a; }
-/* Price down = good = success */
-.badge.down { background: var(--green-bg);   color: var(--green); }
-.badge.flat { background: var(--surface-2);  color: var(--muted); }
+.badge.up   { background: var(--red-bg);   color: #a0160a; }
+/* Price down = positive = teal (success green removed in brand v2) */
+.badge.down { background: var(--teal-bg);  color: var(--primary); }
+.badge.flat { background: var(--surface-2); color: var(--muted); }
 
 /* ── Tables ──────────────────────────────────────────────────────────────── */
 table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }

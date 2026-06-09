@@ -4,14 +4,15 @@ import { api, usingCache } from "./api.js";
 let activeFuel = "E10";
 let map, markersLayer;
 
-// Brand data-viz series colours (Design System v1.0)
-// Series: dark teal · light teal · teal tint · purple · burnt orange · amber
+// Brand data-viz series colours (Design System v2.0)
+// Series: dark teal · light teal · teal tint · burnt orange · amber
+// Purple removed in v2. CVD-safe combination: teal + orange + amber.
 const FUEL_COLORS = {
   E10:         "#006E74",  // 1st series – dark teal
   E5:          "#0097AC",  // 2nd series – light teal
-  B7:          "#5B4FA8",  // 4th series – purple
-  B7_STANDARD: "#5B4FA8",
-  B7_PREMIUM:  "#A07840",  // 6th series – amber
+  B7:          "#A07840",  // amber (split complement) – replaces removed purple
+  B7_STANDARD: "#A07840",
+  B7_PREMIUM:  "#80C4CA",  // teal tint – 3rd series
   SDV:         "#C4571A",  // 5th series – burnt orange
   HVO:         "#C4571A",
   B10:         "#80C4CA",  // 3rd series – teal tint
@@ -101,7 +102,7 @@ async function renderStatusCard() {
   try {
     const s = await api.status();
     const dot = (val) => val
-      ? `<span style="color:#1A7A3C">●</span>`
+      ? `<span style="color:#006E74">●</span>`
       : `<span style="color:#6a6566">○</span>`;
     el("status-card").innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
@@ -135,7 +136,7 @@ async function renderStatusCard() {
       const src = el("source-indicator");
       if (src) {
         if (usingCache) { src.textContent = "Cached ⚠️"; src.style.color = "#C4571A"; }
-        else { src.style.color = "#1A7A3C"; }
+        else { src.style.color = "#006E74"; }
       }
     }, 1000);
   } catch { el("status-card").innerHTML = '<div class="error-msg">Status unavailable</div>'; }
@@ -353,7 +354,7 @@ async function renderBrandShare() {
     if (others > 0) { labels.push("Others"); vals.push(others); }
     mkChart("chart-brand-share", {
       type: "doughnut",
-      data: { labels, datasets: [{ data: vals, backgroundColor: ["#006E74","#0097AC","#5B4FA8","#C4571A","#A07840","#80C4CA","#1A7A3C","#B91C1C","#004f54","#7B6FA0","#6a6566"], borderColor: "#ffffff", borderWidth: 2 }] },
+      data: { labels, datasets: [{ data: vals, backgroundColor: ["#006E74","#0097AC","#80C4CA","#C4571A","#A07840","#004f54","#0097AC","#B91C1C","#006E74","#A07840","#6a6566"], borderColor: "#ffffff", borderWidth: 2 }] },
       options: { plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 10 } } } }, cutout: "65%" }
     });
   } catch {}
@@ -384,7 +385,7 @@ async function renderSupermarketCompare() {
     mkChart("chart-supermarket", {
       type: "bar",
       data: { labels: fuels, datasets: [
-        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#5B4FA833", borderColor: "#5B4FA8", borderWidth: 1.5, borderRadius: 4 },
+        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#A0784033", borderColor: "#A07840", borderWidth: 1.5, borderRadius: 4 },
         { label: "Regular",    data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===0)?.avg_price??0), backgroundColor: "#006E7433", borderColor: "#006E74", borderWidth: 1.5, borderRadius: 4 }
       ]},
       options: { plugins: { legend: { position: "top" } },
@@ -420,7 +421,7 @@ async function renderAnomalies() {
   try {
     const data = await api.anomalies(activeFuel);
     el("anomaly-list").innerHTML = !data.length
-      ? '<div class="loading" style="color:#1A7A3C;font-weight:500">✓ No anomalies detected</div>'
+      ? '<div class="loading" style="color:#006E74;font-weight:500">✓ No anomalies detected</div>'
       : data.slice(0,8).map(r => `
           <div class="anomaly-item">
             <div style="display:flex;justify-content:space-between;align-items:center">
@@ -447,7 +448,7 @@ async function renderPredictedCheapest() {
         <td style="font-weight:500">${r.brand_name}</td>
         <td>${r.city}</td>
         <td style="color:var(--muted)">${r.county}</td>
-        <td style="color:var(--green);font-weight:700">${r.predicted_pence}p</td>
+        <td style="color:#006E74;font-weight:700">${r.predicted_pence}p</td>
       </tr>`).join("")}
       </tbody></table>`;
   } catch {
