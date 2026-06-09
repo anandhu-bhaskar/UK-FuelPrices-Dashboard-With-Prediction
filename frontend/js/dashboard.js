@@ -87,7 +87,7 @@ async function renderSummaryCards() {
       const d7 = pct(ch.current_avg, ch.week_ago_avg);
       const color = FUEL_COLORS[r.fuel_type] || "#006E74";
       return `
-        <div class="card stat-card">
+        <div class="card stat-card" style="border-left:3px solid ${color}">
           <div class="fuel-label" style="color:${color}">${FUEL_LABELS[r.fuel_type] || r.fuel_type}</div>
           <div class="price-big">${r.avg_price}p</div>
           <div class="price-sub">avg today · ${parseInt(r.station_count).toLocaleString()} stations</div>
@@ -323,7 +323,7 @@ async function renderStationByCounty() {
 async function renderCountyPriceRanking() {
   try {
     const data = [...await api.byCounty(activeFuel)].sort((a,b) => b.avg_price - a.avg_price).slice(0,10);
-    el("table-expensive-counties").innerHTML = `<table>
+    el("table-expensive-counties").innerHTML = `<table class="table-expensive">
       <thead><tr><th class="rank">#</th><th>County</th><th>Avg</th></tr></thead>
       <tbody>${data.map((r,i) => `<tr><td class="rank">${i+1}</td><td>${r.county}</td>
         <td style="color:var(--red);font-weight:600">${r.avg_price}p</td></tr>`).join("")}
@@ -445,7 +445,7 @@ async function renderPredictedCheapest() {
     const data = await api.predictedCheapest(activeFuel);
     el("predicted-cheapest").innerHTML = `<table>
       <thead><tr><th class="rank">#</th><th>Brand</th><th>City</th><th>County</th><th>Predicted</th></tr></thead>
-      <tbody>${data.map((r,i) => `<tr>
+      <tbody>${data.map((r,i) => `<tr style="${i < 3 ? 'background:rgba(0,110,116,0.07)' : ''}">
         <td class="rank">${i+1}</td>
         <td style="font-weight:500">${r.brand_name}</td>
         <td>${r.city}</td>

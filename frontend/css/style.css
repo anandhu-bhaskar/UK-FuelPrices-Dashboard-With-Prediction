@@ -37,7 +37,7 @@
 
 body {
   font-family: 'Aptos', 'Segoe UI', Arial, sans-serif;
-  background: var(--bg);
+  background: linear-gradient(150deg, #f2efec 0%, #eaeeef 60%, #e6edf0 100%);
   color: var(--text);
   min-height: 100vh;
   font-size: 14px;
@@ -235,6 +235,7 @@ th {
 }
 th:first-child { border-radius: 4px 0 0 0; }
 th:last-child  { border-radius: 0 4px 0 0; }
+.table-expensive th { background: var(--red); }
 
 /* Alternating rows */
 td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #cccccc; }
