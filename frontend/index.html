@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="css/style.css?v=24" />
+  <link rel="stylesheet" href="css/style.css?v=25" />
 </head>
 <body>
 
@@ -34,7 +34,24 @@
 
   <!-- ① National Average Cards -->
   <section>
-    <div class="section-title">National Averages — Today</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+      <div class="section-title" style="margin-bottom:0" id="avg-section-title">National Averages — Today</div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
+        <div class="filter-pills" id="period-pills">
+          <button class="filter-pill active" data-period="today">Today</button>
+          <button class="filter-pill" data-period="7d">7-day avg</button>
+          <button class="filter-pill" data-period="30d">30-day avg</button>
+          <button class="filter-pill" data-period="90d">90-day avg</button>
+        </div>
+        <div class="filter-pills" id="region-pills">
+          <button class="filter-pill active" data-region="all">All UK</button>
+          <button class="filter-pill" data-region="england">England</button>
+          <button class="filter-pill" data-region="scotland">Scotland</button>
+          <button class="filter-pill" data-region="wales">Wales</button>
+          <button class="filter-pill" data-region="ni">N. Ireland</button>
+        </div>
+      </div>
+    </div>
     <div class="grid-4" id="summary-cards">
       <div class="card skeleton" style="height:110px"></div>
       <div class="card skeleton" style="height:110px"></div>

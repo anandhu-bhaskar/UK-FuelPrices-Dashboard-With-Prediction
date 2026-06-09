@@ -2,6 +2,8 @@ import { api, usingCache } from "./api.js";
 
 // ── State ──────────────────────────────────────────────────────────────────
 let activeFuel = "E10";
+let activePeriod = "today";
+let activeRegion = "all";
 let map, markersLayer;
 
 // Brand data-viz series colours (Design System v2.0)
@@ -78,9 +80,14 @@ function showCacheBanner() {
 }
 
 // ── 1 + 2. National Avg Cards + Summary Stats ───────────────────────────────
+const PERIOD_LABELS = { today: "Today", "7d": "7-day avg", "30d": "30-day avg", "90d": "90-day avg" };
+const REGION_LABELS = { all: "All UK", england: "England", scotland: "Scotland", wales: "Wales", ni: "N. Ireland" };
+
 async function renderSummaryCards() {
+  const titleEl = document.getElementById("avg-section-title");
+  if (titleEl) titleEl.textContent = `National Averages — ${PERIOD_LABELS[activePeriod]}, ${REGION_LABELS[activeRegion]}`;
   try {
-    const [summary, changes] = await Promise.all([api.summary(), api.priceChange()]);
+    const [summary, changes] = await Promise.all([api.nationalAverage(activePeriod, activeRegion), api.priceChange()]);
     const changeMap = Object.fromEntries(changes.map(r => [r.fuel_type, r]));
     el("summary-cards").innerHTML = summary.map(r => {
       const ch = changeMap[r.fuel_type] || {};
@@ -490,6 +497,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       btn.classList.add("active");
       activeFuel = btn.dataset.fuel;
       refreshFuelDependents();
+    });
+  });
+
+  document.querySelectorAll("#period-pills .filter-pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#period-pills .filter-pill").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activePeriod = btn.dataset.period;
+      renderSummaryCards();
+    });
+  });
+
+  document.querySelectorAll("#region-pills .filter-pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#region-pills .filter-pill").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeRegion = btn.dataset.region;
+      renderSummaryCards();
     });
   });
 

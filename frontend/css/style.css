@@ -110,6 +110,34 @@ header h1 span { color: #ffffff; }
   border-bottom: 3px solid var(--light-teal);
 }
 
+/* ── Filter pills (period + region) ─────────────────────────────────────── */
+.filter-pills { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+.filter-pill {
+  padding: 0.22rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-hover);
+  background: rgba(255,255,255,0.5);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.filter-pill:hover {
+  background: var(--teal-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
 /* ── Cache banner ────────────────────────────────────────────────────────── */
 #cache-banner {
   display: none;

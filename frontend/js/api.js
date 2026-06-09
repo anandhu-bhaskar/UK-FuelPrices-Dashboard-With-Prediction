@@ -33,6 +33,7 @@ async function get(path) {
 export const api = {
   status:             ()             => get("/stats/status"),
   summary:            ()             => get("/stats/summary"),
+  nationalAverage:    (period="today", region="all") => get(`/stats/national-average?period=${period}&region=${region}`),
   priceChange:        ()             => get("/stats/price-change"),
   priceTrend:         (days=30)      => get(`/stats/price-trend?days=${days}`),
   byCounty:           (ft="E10")     => get(`/stats/by-county?fuel_type=${DB_FUEL_MAP[ft]||ft}`),

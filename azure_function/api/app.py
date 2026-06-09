@@ -152,6 +152,88 @@ def summary():
     """)
 
 
+# County → region mapping (lowercase keys)
+_COUNTY_REGION: dict[str, str] = {
+    # Scotland
+    "aberdeen city": "scotland", "aberdeenshire": "scotland", "angus": "scotland",
+    "argyll and bute": "scotland", "clackmannanshire": "scotland",
+    "dumfries and galloway": "scotland", "dundee city": "scotland",
+    "east ayrshire": "scotland", "east dunbartonshire": "scotland",
+    "east lothian": "scotland", "east renfrewshire": "scotland",
+    "city of edinburgh": "scotland", "edinburgh": "scotland",
+    "falkirk": "scotland", "fife": "scotland",
+    "glasgow city": "scotland", "glasgow": "scotland",
+    "highland": "scotland", "inverclyde": "scotland",
+    "midlothian": "scotland", "moray": "scotland",
+    "na h-eileanan an iar": "scotland", "north ayrshire": "scotland",
+    "north lanarkshire": "scotland", "orkney islands": "scotland",
+    "perth and kinross": "scotland", "renfrewshire": "scotland",
+    "scottish borders": "scotland", "shetland islands": "scotland",
+    "south ayrshire": "scotland", "south lanarkshire": "scotland",
+    "stirling": "scotland", "west dunbartonshire": "scotland", "west lothian": "scotland",
+    # Wales
+    "blaenau gwent": "wales", "bridgend": "wales", "caerphilly": "wales",
+    "cardiff": "wales", "carmarthenshire": "wales", "ceredigion": "wales",
+    "conwy": "wales", "denbighshire": "wales", "flintshire": "wales",
+    "gwynedd": "wales", "isle of anglesey": "wales", "merthyr tydfil": "wales",
+    "monmouthshire": "wales", "neath port talbot": "wales", "newport": "wales",
+    "pembrokeshire": "wales", "powys": "wales", "rhondda cynon taf": "wales",
+    "swansea": "wales", "torfaen": "wales", "vale of glamorgan": "wales", "wrexham": "wales",
+    # Northern Ireland
+    "antrim and newtownabbey": "ni", "ards and north down": "ni",
+    "armagh city banbridge and craigavon": "ni", "belfast": "ni",
+    "causeway coast and glens": "ni", "derry city and strabane": "ni",
+    "fermanagh and omagh": "ni", "lisburn and castlereagh": "ni",
+    "mid and east antrim": "ni", "mid ulster": "ni", "newry mourne and down": "ni",
+    "county antrim": "ni", "county armagh": "ni", "county down": "ni",
+    "county fermanagh": "ni", "county londonderry": "ni", "county tyrone": "ni",
+    "antrim": "ni", "armagh": "ni", "down": "ni",
+    "fermanagh": "ni", "londonderry": "ni", "tyrone": "ni",
+}
+
+
+@app.get("/stats/national-average")
+def national_average(
+    period: str = Query(default="today", pattern="^(today|7d|30d|90d)$"),
+    region: str = Query(default="all",   pattern="^(all|england|scotland|wales|ni)$"),
+):
+    # Time filter
+    if period == "today":
+        time_sql = "DATE(recorded_at) = (SELECT DATE(MAX(recorded_at)) FROM fuel_prices)"
+        time_params: list = []
+    else:
+        days = {"7d": 7, "30d": 30, "90d": 90}[period]
+        time_sql = "recorded_at >= NOW() - INTERVAL '%s days'"
+        time_params = [days]
+
+    # Region filter
+    if region == "all":
+        region_sql = ""
+        region_params: list = []
+    elif region == "england":
+        non_england = list({c for c, r in _COUNTY_REGION.items() if r != "england"})
+        region_sql = "AND LOWER(COALESCE(county,'')) != ALL(%s::text[])"
+        region_params = [non_england]
+    else:
+        counties = list({c for c, r in _COUNTY_REGION.items() if r == region})
+        region_sql = "AND LOWER(COALESCE(county,'')) = ANY(%s::text[])"
+        region_params = [counties]
+
+    sql = f"""
+        SELECT fuel_type,
+               ROUND(AVG(price_pence)::numeric, 2) AS avg_price,
+               ROUND(MIN(price_pence)::numeric, 2) AS min_price,
+               ROUND(MAX(price_pence)::numeric, 2) AS max_price,
+               COUNT(DISTINCT node_id)             AS station_count,
+               COUNT(*)                            AS reading_count,
+               MAX(recorded_at)                    AS last_updated
+        FROM fuel_prices
+        WHERE {time_sql} {region_sql}
+        GROUP BY fuel_type ORDER BY fuel_type
+    """
+    return _q(sql, tuple(time_params + region_params))
+
+
 @app.get("/stats/price-change")
 def price_change():
     return _q("""
