@@ -197,14 +197,16 @@ def national_average(
     period: str = Query(default="today", pattern="^(today|7d|30d|90d)$"),
     region: str = Query(default="all",   pattern="^(all|england|scotland|wales|ni)$"),
 ):
-    # Time filter
+    # Build current and previous window conditions (period-over-period comparison)
     if period == "today":
-        time_sql = "DATE(recorded_at) = (SELECT DATE(MAX(recorded_at)) FROM fuel_prices)"
-        time_params: list = []
+        cur_cond  = "DATE(fp.recorded_at) = (SELECT DATE(MAX(recorded_at)) FROM fuel_prices)"
+        prev_cond = "DATE(fp.recorded_at) = (SELECT DATE(MAX(recorded_at)) FROM fuel_prices) - INTERVAL '7 days'"
+        union_cond = f"({cur_cond} OR {prev_cond})"
     else:
         days = {"7d": 7, "30d": 30, "90d": 90}[period]
-        time_sql = "recorded_at >= NOW() - INTERVAL '%s days'"
-        time_params = [days]
+        cur_cond   = f"fp.recorded_at >= NOW() - INTERVAL '{days} days'"
+        prev_cond  = f"fp.recorded_at >= NOW() - INTERVAL '{days * 2} days' AND fp.recorded_at < NOW() - INTERVAL '{days} days'"
+        union_cond = f"fp.recorded_at >= NOW() - INTERVAL '{days * 2} days'"
 
     # Region filter
     if region == "all":
@@ -212,26 +214,30 @@ def national_average(
         region_params: list = []
     elif region == "england":
         non_england = list({c for c, r in _COUNTY_REGION.items() if r != "england"})
-        region_sql = "AND LOWER(COALESCE(county,'')) != ALL(%s::text[])"
+        region_sql = "AND LOWER(COALESCE(fp.county,'')) != ALL(%s::text[])"
         region_params = [non_england]
     else:
         counties = list({c for c, r in _COUNTY_REGION.items() if r == region})
-        region_sql = "AND LOWER(COALESCE(county,'')) = ANY(%s::text[])"
+        region_sql = "AND LOWER(COALESCE(fp.county,'')) = ANY(%s::text[])"
         region_params = [counties]
 
+    # Single-pass query: compute current + previous period averages with conditional aggregation
     sql = f"""
-        SELECT fuel_type,
-               ROUND(AVG(price_pence)::numeric, 2) AS avg_price,
-               ROUND(MIN(price_pence)::numeric, 2) AS min_price,
-               ROUND(MAX(price_pence)::numeric, 2) AS max_price,
-               COUNT(DISTINCT node_id)             AS station_count,
-               COUNT(*)                            AS reading_count,
-               MAX(recorded_at)                    AS last_updated
-        FROM fuel_prices
-        WHERE {time_sql} {region_sql}
-        GROUP BY fuel_type ORDER BY fuel_type
+        SELECT fp.fuel_type,
+               ROUND(AVG(CASE WHEN {cur_cond}  THEN fp.price_pence END)::numeric, 2) AS avg_price,
+               ROUND(MIN(CASE WHEN {cur_cond}  THEN fp.price_pence END)::numeric, 2) AS min_price,
+               ROUND(MAX(CASE WHEN {cur_cond}  THEN fp.price_pence END)::numeric, 2) AS max_price,
+               COUNT(DISTINCT CASE WHEN {cur_cond} THEN fp.node_id END)              AS station_count,
+               COUNT(CASE WHEN {cur_cond} THEN 1 END)                                AS reading_count,
+               MAX(CASE WHEN {cur_cond}  THEN fp.recorded_at END)                   AS last_updated,
+               ROUND(AVG(CASE WHEN {prev_cond} THEN fp.price_pence END)::numeric, 2) AS prev_avg_price
+        FROM fuel_prices fp
+        WHERE {union_cond} {region_sql}
+        GROUP BY fp.fuel_type
+        HAVING AVG(CASE WHEN {cur_cond} THEN fp.price_pence END) IS NOT NULL
+        ORDER BY fp.fuel_type
     """
-    return _q(sql, tuple(time_params + region_params))
+    return _q(sql, tuple(region_params))
 
 
 @app.get("/stats/price-change")

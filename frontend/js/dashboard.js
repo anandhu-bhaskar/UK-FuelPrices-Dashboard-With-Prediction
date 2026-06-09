@@ -80,8 +80,9 @@ function showCacheBanner() {
 }
 
 // ── 1 + 2. National Avg Cards + Summary Stats ───────────────────────────────
-const PERIOD_LABELS = { today: "Today", "7d": "7-day avg", "30d": "30-day avg", "90d": "90-day avg" };
-const REGION_LABELS = { all: "All UK", england: "England", scotland: "Scotland", wales: "Wales", ni: "N. Ireland" };
+const PERIOD_LABELS  = { today: "Today", "7d": "7-day avg", "30d": "30-day avg", "90d": "90-day avg" };
+const REGION_LABELS  = { all: "All UK", england: "England", scotland: "Scotland", wales: "Wales", ni: "N. Ireland" };
+const PERIOD_VS_LABEL = { today: "vs 7d ago", "7d": "vs prev week", "30d": "vs prev month", "90d": "vs prev quarter" };
 
 async function renderSummaryCards() {
   const titleEl = document.getElementById("avg-section-title");
@@ -96,23 +97,22 @@ async function renderSummaryCards() {
     <div class="card skeleton" style="height:110px"></div>
     <div class="card skeleton" style="height:110px"></div>`;
 
+  const vsLabel = PERIOD_VS_LABEL[activePeriod];
   try {
-    const [summary, changes] = await Promise.all([api.nationalAverage(activePeriod, activeRegion), api.priceChange()]);
+    const summary = await api.nationalAverage(activePeriod, activeRegion);
     if (!summary.length) {
       el("summary-cards").innerHTML = `<div class="loading">No data for ${regionLabel}</div>`;
       return;
     }
-    const changeMap = Object.fromEntries(changes.map(r => [r.fuel_type, r]));
     el("summary-cards").innerHTML = summary.map(r => {
-      const ch = changeMap[r.fuel_type] || {};
-      const d7 = pct(ch.current_avg, ch.week_ago_avg);
+      const delta = pct(r.avg_price, r.prev_avg_price);
       const color = FUEL_COLORS[r.fuel_type] || "#006E74";
       return `
         <div class="card stat-card" style="border-left:3px solid ${color}">
           <div class="fuel-label" style="color:${color}">${FUEL_LABELS[r.fuel_type] || r.fuel_type}</div>
           <div class="price-big">${r.avg_price}p</div>
           <div class="price-sub">${periodLabel} · ${parseInt(r.station_count).toLocaleString()} stations</div>
-          <div style="margin-top:0.5rem">${badgeHtml(d7)} <span style="font-size:0.7rem;color:var(--muted)">vs 7d ago</span></div>
+          <div style="margin-top:0.5rem">${badgeHtml(delta)} <span style="font-size:0.7rem;color:var(--muted)">${vsLabel}</span></div>
         </div>`;
     }).join("");
     const latest = summary.reduce((a, b) => a.last_updated > b.last_updated ? a : b, summary[0]);
