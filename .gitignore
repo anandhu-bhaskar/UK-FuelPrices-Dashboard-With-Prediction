@@ -22,6 +22,9 @@ kaggle.json
 .vscode/
 .idea/
 
+# Generated data files
+data/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -44,6 +44,42 @@ CREATE INDEX IF NOT EXISTS idx_price_history_node_fuel
 CREATE INDEX IF NOT EXISTS idx_price_history_fuel_type
     ON price_history (fuel_type, recorded_at DESC);
 
+CREATE TABLE IF NOT EXISTS ml_features (
+    id                    BIGSERIAL PRIMARY KEY,
+    node_id               TEXT NOT NULL,
+    recorded_at           TIMESTAMPTZ NOT NULL,
+    price_pence           NUMERIC(6, 1) NOT NULL,
+    fuel_type             TEXT NOT NULL,
+    year                  INTEGER NOT NULL,
+    month                 INTEGER NOT NULL,
+    day                   INTEGER NOT NULL,
+    day_of_week           INTEGER NOT NULL,
+    hour                  INTEGER NOT NULL,
+    latitude              DOUBLE PRECISION NOT NULL,
+    longitude             DOUBLE PRECISION NOT NULL,
+    is_motorway           INTEGER NOT NULL DEFAULT 0,
+    is_supermarket        INTEGER NOT NULL DEFAULT 0,
+    is_temporarily_closed INTEGER NOT NULL DEFAULT 0,
+    is_permanently_closed INTEGER NOT NULL DEFAULT 0,
+    brand_name_encoded    INTEGER NOT NULL,
+    city_encoded          INTEGER NOT NULL,
+    county_encoded        INTEGER NOT NULL,
+    CONSTRAINT ml_features_unique UNIQUE (node_id, fuel_type, recorded_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ml_features_recorded_at
+    ON ml_features (recorded_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ml_features_fuel_type
+    ON ml_features (fuel_type, recorded_at DESC);
+
+CREATE TABLE IF NOT EXISTS label_encodings (
+    column_name TEXT NOT NULL,
+    label       TEXT NOT NULL,
+    encoded     INTEGER NOT NULL,
+    PRIMARY KEY (column_name, label)
+);
+
 CREATE TABLE IF NOT EXISTS ingest_log (
     id            BIGSERIAL PRIMARY KEY,
     ran_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),

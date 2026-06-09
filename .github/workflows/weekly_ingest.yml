@@ -37,6 +37,16 @@ jobs:
       - name: Run ingest
         run: python scripts/ingest.py
 
+      - name: Run preprocessing
+        run: python scripts/preprocess.py
+
+      - name: Upload ml_features artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-features
+          path: data/ml_features.parquet
+          retention-days: 30
+
       - name: Notify on failure
         if: failure()
-        run: echo "Ingest job failed. Check the logs above."
+        run: echo "Ingest or preprocessing failed. Check the logs above."
