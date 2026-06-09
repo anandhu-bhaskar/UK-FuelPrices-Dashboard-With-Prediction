@@ -18,6 +18,9 @@ venv/
 ~/.kaggle/kaggle.json
 kaggle.json
 
+# Claude
+.claude/
+
 # IDE
 .vscode/
 .idea/
