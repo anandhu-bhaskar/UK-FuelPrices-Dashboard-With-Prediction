@@ -136,25 +136,22 @@ main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem;
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
 .card {
-  background: transparent;
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 12px;
   padding: 1.25rem;
-  box-shadow: none;
-  transition: background 0.35s ease, backdrop-filter 0.35s ease,
-              -webkit-backdrop-filter 0.35s ease, border-color 0.35s ease,
-              box-shadow 0.35s ease, transform 0.35s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: background 0.3s ease, border-color 0.3s ease,
+              box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 .card:hover {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-color: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.11), 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-3px);
 }
 
 /* Card title = H3 subhead: sentence case, dark teal, medium weight */
