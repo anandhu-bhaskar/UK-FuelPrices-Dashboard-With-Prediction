@@ -156,11 +156,12 @@ main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem;
   background: rgba(255, 255, 255, 0.72);
   border-color: rgba(0, 110, 116, 0.45);
   box-shadow:
-    0 0 0 1px rgba(0, 110, 116, 0.18),
-    0 0 18px 4px rgba(0, 110, 116, 0.18),
-    0 0 40px 8px rgba(0, 110, 116, 0.09),
-    0 4px 6px rgba(35, 31, 32, 0.08),
-    0 12px 28px rgba(35, 31, 32, 0.1);
+    0 0 0 2px rgba(0, 110, 116, 0.5),
+    0 0 20px 6px rgba(0, 110, 116, 0.4),
+    0 0 55px 14px rgba(0, 110, 116, 0.2),
+    0 0 90px 20px rgba(0, 110, 116, 0.08),
+    0 6px 8px rgba(35, 31, 32, 0.12),
+    0 14px 32px rgba(35, 31, 32, 0.15);
   transform: translateY(-3px);
 }
 
