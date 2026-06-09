@@ -7,8 +7,10 @@ import logging
 import os
 import sys
 import tempfile
+import zipfile
 
 import pandas as pd
+import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from azure_function.shared.db import (
@@ -29,12 +31,19 @@ logger = logging.getLogger(__name__)
 
 
 def download_dataset(dest_dir: str) -> None:
-    import kaggle
-
-    logger.info("Authenticating with Kaggle...")
-    kaggle.api.authenticate()
+    token = os.environ["KAGGLE_API_TOKEN"]
+    owner, dataset = KAGGLE_DATASET.split("/")
+    url = f"https://www.kaggle.com/api/v1/datasets/download/{owner}/{dataset}"
     logger.info("Downloading %s ...", KAGGLE_DATASET)
-    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=dest_dir, unzip=True)
+    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, stream=True, timeout=120)
+    resp.raise_for_status()
+    zip_path = os.path.join(dest_dir, "dataset.zip")
+    with open(zip_path, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+    with zipfile.ZipFile(zip_path, "r") as z:
+        z.extractall(dest_dir)
+    os.remove(zip_path)
     logger.info("Downloaded files: %s", os.listdir(dest_dir))
 
 
@@ -54,10 +63,16 @@ def ingest_stations(conn, path: str) -> int:
     return upsert_stations(conn, df.to_dict(orient="records"))
 
 
-def ingest_prices(conn, path: str, latest_recorded_at) -> int:
+def ingest_prices(conn, path: str, latest_recorded_at, valid_node_ids: set) -> int:
     df = pd.read_csv(path)
     df["recorded_at"] = pd.to_datetime(df["recorded_at"], utc=True, errors="coerce")
     df["source_updated_at"] = pd.to_datetime(df["source_updated_at"], utc=True, errors="coerce")
+
+    before = len(df)
+    df = df[df["node_id"].isin(valid_node_ids)]
+    dropped = before - len(df)
+    if dropped:
+        logger.info("Dropped %d price rows with no matching station.", dropped)
 
     if latest_recorded_at is not None:
         df = df[df["recorded_at"] > pd.Timestamp(latest_recorded_at, tz="UTC")]
@@ -82,10 +97,12 @@ def main() -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             download_dataset(tmpdir)
 
+            stations_df = pd.read_csv(os.path.join(tmpdir, "stations.csv"))
+            valid_node_ids = set(stations_df["node_id"])
             rows_stations = ingest_stations(conn, os.path.join(tmpdir, "stations.csv"))
             logger.info("Stations upserted: %d", rows_stations)
 
-            rows_prices = ingest_prices(conn, os.path.join(tmpdir, "price_history.csv"), latest)
+            rows_prices = ingest_prices(conn, os.path.join(tmpdir, "price_history.csv"), latest, valid_node_ids)
             logger.info("Price rows inserted: %d", rows_prices)
 
         log_run(conn, rows_stations, rows_prices, "success")
