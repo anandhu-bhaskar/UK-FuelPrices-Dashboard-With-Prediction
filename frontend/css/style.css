@@ -1,0 +1,202 @@
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --orange: #f97316;
+  --purple: #a855f7;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+
+header h1 { font-size: 1.2rem; font-weight: 700; }
+header h1 span { color: var(--blue); }
+
+#last-updated { font-size: 0.75rem; color: var(--muted); }
+
+.fuel-tabs {
+  display: flex; gap: 0.5rem;
+  padding: 1.5rem 2rem 0;
+}
+
+.fuel-tab {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.fuel-tab.active, .fuel-tab:hover {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
+main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+.section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+.grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.card-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+/* Stat cards */
+.stat-card { text-align: center; }
+.stat-card .fuel-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.stat-card .price-big { font-size: 2.2rem; font-weight: 700; line-height: 1.1; margin: 0.25rem 0; }
+.stat-card .price-sub { font-size: 0.75rem; color: var(--muted); }
+
+/* Change badge */
+.badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.badge.up { background: rgba(239,68,68,0.15); color: var(--red); }
+.badge.down { background: rgba(34,197,94,0.15); color: var(--green); }
+.badge.flat { background: rgba(148,163,184,0.15); color: var(--muted); }
+
+/* Summary row */
+.stat-row { display: flex; gap: 2rem; }
+.stat-item .label { font-size: 0.7rem; color: var(--muted); }
+.stat-item .value { font-size: 1.4rem; font-weight: 700; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th { color: var(--muted); font-weight: 500; text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+td { padding: 0.45rem 0.5rem; border-bottom: 1px solid rgba(51,65,85,0.5); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.rank { color: var(--muted); font-size: 0.7rem; width: 1.5rem; }
+
+/* Price bar */
+.price-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+.price-bar { height: 4px; background: var(--blue); border-radius: 2px; }
+
+/* Map */
+#map { height: 420px; border-radius: 0.5rem; overflow: hidden; }
+
+/* Feed */
+.feed-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(51,65,85,0.5);
+  font-size: 0.8rem;
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-station { font-weight: 500; }
+.feed-meta { color: var(--muted); font-size: 0.7rem; }
+.feed-price { font-weight: 700; color: var(--blue); }
+
+/* Anomaly */
+.anomaly-item {
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239,68,68,0.05);
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+.anomaly-item .a-station { font-weight: 600; }
+.anomaly-item .a-price { color: var(--red); font-weight: 700; }
+.anomaly-item .a-meta { color: var(--muted); font-size: 0.72rem; }
+
+/* Predictor */
+.predictor-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.predictor-form select, .predictor-form input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  width: 100%;
+}
+.predictor-form button {
+  background: var(--blue);
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.6rem;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.predictor-form button:hover { opacity: 0.85; }
+.predict-result { text-align: center; margin-top: 0.75rem; }
+.predict-result .p-val { font-size: 2rem; font-weight: 700; color: var(--blue); }
+.predict-result .p-label { font-size: 0.75rem; color: var(--muted); }
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.25rem;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.loading { color: var(--muted); font-size: 0.8rem; }
+.error-msg { color: var(--red); font-size: 0.8rem; }
+
+/* Chart containers */
+.chart-wrap { position: relative; }
+
+canvas { max-width: 100%; }
+
+@media (max-width: 1200px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-2-1, .grid-1-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  main { padding: 1rem; }
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  header { padding: 0.75rem 1rem; }
+  .fuel-tabs { padding: 1rem 1rem 0; flex-wrap: wrap; }
+}
