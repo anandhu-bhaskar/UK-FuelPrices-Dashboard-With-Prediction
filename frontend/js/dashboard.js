@@ -5,9 +5,9 @@ let activeFuel = "E10";
 let map, markersLayer;
 
 const FUEL_COLORS = {
-  E5: "#3b82f6", E10: "#22c55e", B7: "#f97316", SDV: "#a855f7",
-  B7_STANDARD: "#f97316", B7_PREMIUM: "#fb923c",
-  B10: "#84cc16", HVO: "#a855f7"
+  E10: "#2563eb", E5: "#0891b2",
+  B7: "#7c3aed", B7_STANDARD: "#7c3aed", B7_PREMIUM: "#9333ea",
+  SDV: "#059669", HVO: "#059669", B10: "#0d9488"
 };
 const FUEL_LABELS = {
   E10: "E10 (Petrol)", E5: "E5 (Super Petrol)",
@@ -26,8 +26,8 @@ function mkChart(id, config) {
 }
 
 Chart.defaults.font = { family: "Inter, system-ui, sans-serif", size: 11 };
-Chart.defaults.color = "#94a3b8";
-const gridColor = "rgba(51,65,85,0.6)";
+Chart.defaults.color = "#64748b";
+const gridColor = "rgba(226,232,240,1)";
 
 function pct(a, b) {
   if (!a || !b) return null;
@@ -142,7 +142,7 @@ async function renderFuelComparison() {
       type: "bar",
       data: {
         labels: data.map(r => r.fuel_type),
-        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map(r => FUEL_COLORS[r.fuel_type] || "#3b82f6"), borderRadius: 6 }]
+        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map(r => FUEL_COLORS[r.fuel_type] || "#2563eb"), borderRadius: 4 }]
       },
       options: { indexAxis: "y", plugins: { legend: { display: false } },
         scales: { x: { grid: { color: gridColor }, ticks: { callback: v => v + "p" } }, y: { grid: { display: false } } } }
@@ -188,7 +188,7 @@ async function renderPriceTrend() {
     mkChart("chart-trend", {
       type: "line",
       data: { labels: dates.map(d => new Date(d).toLocaleDateString("en-GB", { day:"numeric", month:"short" })),
-        datasets: fuels.map(f => ({ label: f, data: byFuel[f], borderColor: FUEL_COLORS[f] || "#3b82f6",
+        datasets: fuels.map(f => ({ label: FUEL_LABELS[f] || f, data: byFuel[f], borderColor: FUEL_COLORS[f] || "#2563eb",
           backgroundColor: "transparent", borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true })) },
       options: { plugins: { legend: { position: "top" } },
         scales: { x: { grid: { color: gridColor }, ticks: { maxTicksLimit: 8 } },
@@ -206,7 +206,7 @@ async function renderDayOfWeek() {
       type: "bar",
       data: { labels: data.map(r => DOW[r.day_of_week]),
         datasets: [{ data: data.map(r => r.avg_price),
-          backgroundColor: data.map(r => r.avg_price === min ? FUEL_COLORS[activeFuel] : "rgba(148,163,184,0.25)"),
+          backgroundColor: data.map(r => r.avg_price === min ? FUEL_COLORS[activeFuel] || "#2563eb" : "#e2e8f0"),
           borderRadius: 5 }] },
       options: { plugins: { legend: { display: false } },
         scales: { x: { grid: { display: false } },
@@ -219,7 +219,7 @@ async function renderDayOfWeek() {
 async function renderMonthly() {
   try {
     const data = await api.byMonth(activeFuel);
-    const color = FUEL_COLORS[activeFuel] || "#3b82f6";
+    const color = FUEL_COLORS[activeFuel] || "#2563eb";
     mkChart("chart-monthly", {
       type: "line",
       data: { labels: data.map(r => MONTHS[r.month - 1]),
@@ -235,7 +235,7 @@ async function renderMonthly() {
 async function renderDistribution() {
   try {
     const data = await api.distribution(activeFuel);
-    const color = FUEL_COLORS[activeFuel] || "#3b82f6";
+    const color = FUEL_COLORS[activeFuel] || "#2563eb";
     mkChart("chart-dist", {
       type: "bar",
       data: { labels: data.map(r => r.bucket + "p"),
@@ -252,22 +252,27 @@ async function renderDistribution() {
 async function renderMap() {
   if (!map) {
     map = L.map("map").setView([54.5, -2.5], 6);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       { attribution: "© OpenStreetMap © CARTO", maxZoom: 18 }).addTo(map);
     markersLayer = L.layerGroup().addTo(map);
   }
   try {
     const prices = await api.prices(activeFuel, 500);
     markersLayer.clearLayers();
-    if (!prices.length) return;
-    const vals = prices.map(p => parseFloat(p.price_pence));
+    // Filter to UK bounding box only (excludes bad coordinates from DB)
+    const uk = prices.filter(p =>
+      p.latitude && p.longitude &&
+      p.latitude >= 49.5 && p.latitude <= 60.8 &&
+      p.longitude >= -8.0 && p.longitude <= 2.0
+    );
+    if (!uk.length) return;
+    const vals = uk.map(p => parseFloat(p.price_pence));
     const min = Math.min(...vals), max = Math.max(...vals);
-    prices.forEach(p => {
-      if (!p.latitude || !p.longitude) return;
+    uk.forEach(p => {
       const t = (parseFloat(p.price_pence) - min) / (max - min || 1);
-      const r = Math.round(t * 255), g = Math.round((1 - t) * 200);
-      const color = `rgb(${r},${g},40)`;
-      L.circleMarker([p.latitude, p.longitude], { radius: 5, fillColor: color, color: "#0f172a", weight: 1, fillOpacity: 0.85 })
+      const r = Math.round(t * 220), g = Math.round((1 - t) * 160);
+      const color = `rgb(${r},${g},50)`;
+      L.circleMarker([p.latitude, p.longitude], { radius: 5, fillColor: color, color: "#ffffff", weight: 1, fillOpacity: 0.85 })
         .bindPopup(`<b>${p.brand_name}</b><br>${p.city}, ${p.county}<br><b style="color:${color}">${p.price_pence}p</b> ${p.fuel_type}<br><small>${fmtDate(p.recorded_at)}</small>`)
         .addTo(markersLayer);
     });
@@ -297,7 +302,7 @@ async function renderStationByCounty() {
     mkChart("chart-station-county", {
       type: "bar",
       data: { labels: data.map(r => r.county),
-        datasets: [{ data: data.map(r => r.station_count), backgroundColor: "#3b82f666", borderColor: "#3b82f6", borderWidth: 1, borderRadius: 4 }] },
+        datasets: [{ data: data.map(r => r.station_count), backgroundColor: "#0891b233", borderColor: "#0891b2", borderWidth: 1.5, borderRadius: 4 }] },
       options: { indexAxis: "y", plugins: { legend: { display: false } },
         scales: { x: { grid: { color: gridColor } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
     });
@@ -323,7 +328,7 @@ async function renderBrandPrice() {
     mkChart("chart-brand-price", {
       type: "bar",
       data: { labels: data.map(r => r.brand_name),
-        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: data.map((_,i) => `hsl(${210+i*8},70%,55%)`), borderRadius: 5 }] },
+        datasets: [{ data: data.map(r => r.avg_price), backgroundColor: "#2563eb99", borderColor: "#2563eb", borderWidth: 1, borderRadius: 4 }] },
       options: { indexAxis: "y", plugins: { legend: { display: false } },
         scales: { x: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
     });
@@ -341,7 +346,7 @@ async function renderBrandShare() {
     if (others > 0) { labels.push("Others"); vals.push(others); }
     mkChart("chart-brand-share", {
       type: "doughnut",
-      data: { labels, datasets: [{ data: vals, backgroundColor: labels.map((_,i) => `hsl(${i*36},65%,55%)`), borderColor: "#1e293b", borderWidth: 2 }] },
+      data: { labels, datasets: [{ data: vals, backgroundColor: ["#2563eb","#0891b2","#7c3aed","#059669","#d97706","#dc2626","#0d9488","#6366f1","#0369a1","#9333ea","#64748b"], borderColor: "#ffffff", borderWidth: 2 }] },
       options: { plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 10 } } } }, cutout: "65%" }
     });
   } catch {}
@@ -355,8 +360,8 @@ async function renderMotorwayCompare() {
     mkChart("chart-motorway", {
       type: "bar",
       data: { labels: fuels, datasets: [
-        { label: "Motorway", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===1)?.avg_price??0), backgroundColor: "#ef444466", borderColor: "#ef4444", borderWidth: 1, borderRadius: 4 },
-        { label: "Regular",  data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===0)?.avg_price??0), backgroundColor: "#22c55e66", borderColor: "#22c55e", borderWidth: 1, borderRadius: 4 }
+        { label: "Motorway", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===1)?.avg_price??0), backgroundColor: "#dc262633", borderColor: "#dc2626", borderWidth: 1.5, borderRadius: 4 },
+        { label: "Regular",  data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_motorway===0)?.avg_price??0), backgroundColor: "#2563eb33", borderColor: "#2563eb", borderWidth: 1.5, borderRadius: 4 }
       ]},
       options: { plugins: { legend: { position: "top" } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
@@ -372,8 +377,8 @@ async function renderSupermarketCompare() {
     mkChart("chart-supermarket", {
       type: "bar",
       data: { labels: fuels, datasets: [
-        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#3b82f666", borderColor: "#3b82f6", borderWidth: 1, borderRadius: 4 },
-        { label: "Regular",    data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===0)?.avg_price??0), backgroundColor: "#a855f766", borderColor: "#a855f7", borderWidth: 1, borderRadius: 4 }
+        { label: "Supermarket", data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===1)?.avg_price??0), backgroundColor: "#05996933", borderColor: "#059669", borderWidth: 1.5, borderRadius: 4 },
+        { label: "Regular",    data: fuels.map(f => data.find(r => r.fuel_type===f && r.is_supermarket===0)?.avg_price??0), backgroundColor: "#2563eb33", borderColor: "#2563eb", borderWidth: 1.5, borderRadius: 4 }
       ]},
       options: { plugins: { legend: { position: "top" } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor }, ticks: { callback: v => v+"p" } } } }
@@ -385,7 +390,7 @@ async function renderSupermarketCompare() {
 async function renderForecast() {
   try {
     const data = await api.forecast(activeFuel);
-    const color = FUEL_COLORS[activeFuel] || "#3b82f6";
+    const color = FUEL_COLORS[activeFuel] || "#2563eb";
     if (!data.length) throw new Error("no data");
     mkChart("chart-forecast", {
       type: "line",
