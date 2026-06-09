@@ -6,7 +6,7 @@
 
 ---
 
-[![Dashboard Demo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnU5amlsYTcwM2kybjVheno1a3BwNGtka2IwbjA4Nmo1Y3l1MTBqOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Ql0qph2lFZmQzgesXB/giphy.gif)](https://www.awesomescreenshot.com/video/53428053?key=925a2addb4b4fcc6ed6f7be7b95df880)
+[![Dashboard Demo](docs/dashboard-preview.gif)](https://www.awesomescreenshot.com/video/53428053?key=925a2addb4b4fcc6ed6f7be7b95df880)
 
 ---
 
