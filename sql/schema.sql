@@ -36,9 +36,10 @@ CREATE INDEX IF NOT EXISTS idx_fuel_prices_node
     ON fuel_prices (node_id, recorded_at DESC);
 
 CREATE TABLE IF NOT EXISTS ingest_log (
-    id            BIGSERIAL PRIMARY KEY,
-    ran_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    rows_inserted INTEGER NOT NULL DEFAULT 0,
-    status        TEXT NOT NULL,
-    error_message TEXT
+    id                   BIGSERIAL PRIMARY KEY,
+    ran_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    rows_inserted        INTEGER NOT NULL DEFAULT 0,
+    status               TEXT NOT NULL,
+    kaggle_last_updated  TEXT,
+    error_message        TEXT
 );

@@ -1,17 +1,20 @@
 """
 Weekly ingest: pull from Kaggle, feature-engineer, store in Neon.
+Checks dataset last_updated before downloading to skip unnecessary 200MB pulls.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import stat
 import sys
 import tempfile
 import zipfile
 
+import kaggle
 import pandas as pd
-import requests
 from psycopg2.extras import execute_values
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -23,29 +26,54 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
+# ── Kaggle auth ───────────────────────────────────────────────────────────────
+
+def setup_kaggle_credentials() -> None:
+    kaggle_dir = os.path.expanduser("~/.kaggle")
+    os.makedirs(kaggle_dir, exist_ok=True)
+    creds_path = os.path.join(kaggle_dir, "kaggle.json")
+    creds = {
+        "username": os.environ["KAGGLE_USERNAME"],
+        "key":      os.environ["KAGGLE_KEY"],
+    }
+    with open(creds_path, "w") as f:
+        json.dump(creds, f)
+    os.chmod(creds_path, stat.S_IRUSR | stat.S_IWUSR)
+    kaggle.api.authenticate()
+
+
+# ── Freshness check ───────────────────────────────────────────────────────────
+
+def get_kaggle_last_updated() -> str:
+    owner, dataset_slug = KAGGLE_DATASET.split("/")
+    results = kaggle.api.dataset_list(search=dataset_slug, user=owner)
+    for d in results:
+        if d.ref == KAGGLE_DATASET:
+            return str(d.last_updated)
+    return ""
+
+
+def get_stored_last_updated(conn) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT kaggle_last_updated FROM ingest_log WHERE kaggle_last_updated IS NOT NULL ORDER BY ran_at DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+    return str(row[0]) if row and row[0] else ""
+
+
 # ── Download ──────────────────────────────────────────────────────────────────
 
 def download_dataset(dest_dir: str) -> None:
-    token = os.environ["KAGGLE_API_TOKEN"]
-    owner, dataset = KAGGLE_DATASET.split("/")
-    url = f"https://www.kaggle.com/api/v1/datasets/download/{owner}/{dataset}"
+    owner, dataset_slug = KAGGLE_DATASET.split("/")
     logger.info("Downloading %s ...", KAGGLE_DATASET)
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, stream=True, timeout=120)
-    resp.raise_for_status()
-    zip_path = os.path.join(dest_dir, "dataset.zip")
-    with open(zip_path, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
-    with zipfile.ZipFile(zip_path, "r") as z:
-        z.extractall(dest_dir)
-    os.remove(zip_path)
+    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=dest_dir, unzip=True)
     logger.info("Files: %s", os.listdir(dest_dir))
 
 
 # ── Transform ─────────────────────────────────────────────────────────────────
 
 def build_features(stations_path: str, prices_path: str) -> pd.DataFrame:
-    # Load
     df_stations = pd.read_csv(stations_path)
     df_prices   = pd.read_csv(prices_path)
 
@@ -71,7 +99,6 @@ def build_features(stations_path: str, prices_path: str) -> pd.DataFrame:
         on="node_id",
         how="inner",
     )
-    logger.info("After merge + clean: %d rows.", len(df))
 
     # Time features
     df["year"]        = df["recorded_at"].dt.year
@@ -80,6 +107,7 @@ def build_features(stations_path: str, prices_path: str) -> pd.DataFrame:
     df["day_of_week"] = df["recorded_at"].dt.dayofweek
     df["hour"]        = df["recorded_at"].dt.hour
 
+    logger.info("After merge + clean: %d rows.", len(df))
     return df
 
 
@@ -88,8 +116,8 @@ def build_features(stations_path: str, prices_path: str) -> pd.DataFrame:
 def get_latest_recorded_at(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT MAX(recorded_at) FROM fuel_prices")
-        result = cur.fetchone()
-    return result[0] if result and result[0] else None
+        row = cur.fetchone()
+    return row[0] if row and row[0] else None
 
 
 def insert_fuel_prices(conn, df: pd.DataFrame) -> int:
@@ -121,11 +149,11 @@ def insert_fuel_prices(conn, df: pd.DataFrame) -> int:
     return len(rows)
 
 
-def log_run(conn, rows_inserted: int, status: str, error: str | None = None) -> None:
+def log_run(conn, rows_inserted: int, status: str, kaggle_last_updated: str = "", error: str | None = None) -> None:
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO ingest_log (rows_inserted, status, error_message) VALUES (%s, %s, %s)",
-            (rows_inserted, status, error),
+            "INSERT INTO ingest_log (rows_inserted, status, kaggle_last_updated, error_message) VALUES (%s, %s, %s, %s)",
+            (rows_inserted, status, kaggle_last_updated or None, error),
         )
     conn.commit()
 
@@ -135,11 +163,24 @@ def log_run(conn, rows_inserted: int, status: str, error: str | None = None) -> 
 def main() -> None:
     conn = None
     rows_inserted = 0
+    kaggle_last_updated = ""
     try:
+        setup_kaggle_credentials()
         conn = get_connection()
-        latest = get_latest_recorded_at(conn)
-        logger.info("Latest recorded_at in DB: %s", latest)
 
+        # Check if dataset was updated since last successful run
+        kaggle_last_updated = get_kaggle_last_updated()
+        stored_last_updated = get_stored_last_updated(conn)
+        logger.info("Kaggle last updated : %s", kaggle_last_updated)
+        logger.info("Our last successful : %s", stored_last_updated)
+
+        if kaggle_last_updated and stored_last_updated and kaggle_last_updated == stored_last_updated:
+            logger.info("Dataset unchanged — skipping download.")
+            log_run(conn, 0, "skipped", kaggle_last_updated)
+            return
+
+        # Download, transform, load
+        latest = get_latest_recorded_at(conn)
         with tempfile.TemporaryDirectory() as tmpdir:
             download_dataset(tmpdir)
             df = build_features(
@@ -147,25 +188,25 @@ def main() -> None:
                 os.path.join(tmpdir, "price_history.csv"),
             )
 
-        # Delta: only new rows
         if latest is not None:
-            df = df[df["recorded_at"] > pd.Timestamp(latest, tz="UTC")]
+            cutoff = pd.Timestamp(latest).tz_localize("UTC") if latest.tzinfo is None else pd.Timestamp(latest)
+            df = df[df["recorded_at"] > cutoff]
 
         if df.empty:
-            logger.info("No new rows — dataset not updated since last run.")
-            log_run(conn, 0, "skipped")
+            logger.info("No new rows after delta filter.")
+            log_run(conn, 0, "skipped", kaggle_last_updated)
             return
 
         logger.info("%d new rows to insert.", len(df))
         rows_inserted = insert_fuel_prices(conn, df)
-        log_run(conn, rows_inserted, "success")
+        log_run(conn, rows_inserted, "success", kaggle_last_updated)
         logger.info("Done. Inserted %d rows.", rows_inserted)
 
     except Exception as exc:
         logger.exception("Ingest failed.")
         if conn:
             try:
-                log_run(conn, rows_inserted, "error", str(exc))
+                log_run(conn, rows_inserted, "error", kaggle_last_updated, str(exc))
             except Exception:
                 pass
         sys.exit(1)
