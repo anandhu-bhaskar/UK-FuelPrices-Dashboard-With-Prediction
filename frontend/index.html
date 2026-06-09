@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="css/style.css?v=20" />
+  <link rel="stylesheet" href="css/style.css?v=21" />
 </head>
 <body>
 
@@ -17,13 +17,6 @@
   <h1>UK <span>Fuel Price</span> Dashboard</h1>
   <span id="last-updated">Loading…</span>
 </header>
-
-<div class="fuel-tabs">
-  <button class="fuel-tab active" data-fuel="E10">E10 (Petrol)</button>
-  <button class="fuel-tab" data-fuel="E5">E5 (Super)</button>
-  <button class="fuel-tab" data-fuel="B7">B7 (Diesel)</button>
-  <button class="fuel-tab" data-fuel="SDV">SDV (Super Diesel)</button>
-</div>
 
 <main>
 
@@ -49,6 +42,14 @@
       <div class="card skeleton" style="height:110px"></div>
     </div>
   </section>
+
+  <!-- Fuel filter tabs -->
+  <div class="fuel-tabs">
+    <button class="fuel-tab active" data-fuel="E10">E10 (Petrol)</button>
+    <button class="fuel-tab" data-fuel="E5">E5 (Super)</button>
+    <button class="fuel-tab" data-fuel="B7">B7 (Diesel)</button>
+    <button class="fuel-tab" data-fuel="SDV">SDV (Super Diesel)</button>
+  </div>
 
   <!-- ④ Price Change Cards -->
   <section>

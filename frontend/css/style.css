@@ -82,8 +82,8 @@ header h1 span { color: #ffffff; }
 .fuel-tabs {
   display: flex;
   gap: 0.5rem;
-  padding: 1.25rem 2rem 0;
-  background: var(--bg);
+  padding: 0.5rem 0;
+  background: transparent;
 }
 
 .fuel-tab {
