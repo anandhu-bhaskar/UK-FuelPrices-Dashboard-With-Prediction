@@ -13,7 +13,7 @@ from ..shared.db import get_connection
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="UK Fuel Price API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["https://anandhu-bhaskar.github.io"], allow_methods=["GET"], allow_headers=["*"])
 
 
 def _s(row: dict) -> dict:

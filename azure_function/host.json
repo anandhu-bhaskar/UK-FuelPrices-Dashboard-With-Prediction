@@ -12,7 +12,7 @@
     }
   },
   "cors": {
-    "allowedOrigins": ["*"],
+    "allowedOrigins": ["https://anandhu-bhaskar.github.io"],
     "supportCredentials": false
   },
   "extensionBundle": {
